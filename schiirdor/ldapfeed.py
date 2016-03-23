@@ -59,6 +59,7 @@ class LDAPConnection(object):
             pprint(self.user_base_filters)
             pprint(self.group_base_filters)
 
+    @classmethod
     def configure(self, seid, sname, stype, surl, sconfig, login, password):
         """ Update and type the connection configuration.
         """
@@ -111,7 +112,9 @@ class LDAPConnection(object):
             data = {}
             for key, values in result[0][1].items():
                 index = ldap_attrlist.index(key)
-                data[cw_attrlist[index]] = "-".join(values)
+                if len(values) == 1:
+                    values = values[0]
+                data[cw_attrlist[index]] = values
             return data
 
     def is_valid_group(self, group, filter_attributes=False):
@@ -146,7 +149,9 @@ class LDAPConnection(object):
             data = {}
             for key, values in result[0][1].items():
                 index = ldap_attrlist.index(key)
-                data[cw_attrlist[index]] = "-".join(values)
+                if len(values) == 1:
+                    values = values[0]
+                data[cw_attrlist[index]] = values
             return data
 
     def create_group(self, group):
