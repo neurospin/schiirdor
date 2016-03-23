@@ -82,6 +82,7 @@ class LDAPConnection(object):
         """ Check the login exists in the configured active directory.
 
         Note:
+
             The 'attrmap' parameter need to be an ordered dictionary.
         """
         searchfilter = [
@@ -117,6 +118,7 @@ class LDAPConnection(object):
         """ Check the group exists in the configured active directory.
 
         Note:
+
             The 'attrmap' parameter need to be an ordered dictionary.
         """
         searchfilter = [self.config["group-filter"].format(group)]
@@ -151,6 +153,7 @@ class LDAPConnection(object):
         """ Create a group.
 
         Note:
+
             No unicity check is performed at this stage.
         """
         groupattr = collections.OrderedDict(self.config["group-attrs-map"])
@@ -176,13 +179,13 @@ class LDAPConnection(object):
         """ Create a user.
 
         Note:
+
             No unicity check is performed at this stage.
         """
         cn = str(firstname) + " " + str(lastname)
         userdn = "uid={0},{1}".format(login, self.config["user-base-dn"])
         attrs = [
             ("objectclass", [str(self.config["user-classes"][0])]),
-            #"person", "organizationalperson", "inetorgperson"]),
             ("uid", [str(login)]),
             ("cn", [cn]),
             ("sn", [str(lastname)]),
@@ -196,7 +199,9 @@ class LDAPConnection(object):
 
     def add_user_in_group(self, group, login):
         """ Add a user to a group.
+
         Note:
+
             No unicity check is performed at this stage.
         """
         groupattr = collections.OrderedDict(self.config["group-attrs-map"])
@@ -209,6 +214,59 @@ class LDAPConnection(object):
             pprint(groupdn)
             pprint(attrs)
         return self.ldapobject.modify_s(groupdn, attrs)
+
+    def dump_users_and_groups(self):
+        """ Dump all the users and groups.
+        """
+        attrmap = collections.OrderedDict(self.config["group-attrs-map"])
+        ldap_attrlist = [str(elem) for elem in attrmap.keys()]
+        cw_attrlist = attrmap.values()
+        groupattr = collections.OrderedDict(self.config["group-attrs-map"])
+        group_key = groupattr.keys()[groupattr.values().index("gid")]
+        groups_search = self.ldapobject.search_s(
+            self.config["group-base-dn"],
+            globals()[self.config["group-scope"]],
+            "({0}=*)".format(group_key),
+            ldap_attrlist)
+        if self.verbose > 0:
+            pprint(groups_search)
+        groups_data = []
+        for _, group_info in groups_search:
+            data = {}
+            for key, values in group_info.items():
+                index = ldap_attrlist.index(key)
+                if len(values) == 1:
+                    values = values[0]
+                data[cw_attrlist[index]] = values
+            groups_data.append(data)
+
+        attrmap = collections.OrderedDict(self.config["user-attrs-map"])
+        ldap_attrlist = [str(elem) for elem in attrmap.keys()]
+        cw_attrlist = attrmap.values()
+        searchfilter = [
+            filter_format("(%s=*)", (self.config["user-login-attr"], ))]
+        searchfilter.extend(self.user_base_filters)
+        searchstr = "(&%s)" % "".join(searchfilter)
+        if self.verbose > 0:
+            pprint(searchstr)
+        users_search = self.ldapobject.search_s(
+            self.config["user-base-dn"],
+            globals()[self.config["user-scope"]],
+            searchstr,
+            ldap_attrlist)
+        if self.verbose > 0:
+            pprint(users_search)
+        users_data = []
+        for _, user_info in users_search:
+            data = {}
+            for key, values in user_info.items():
+                index = ldap_attrlist.index(key)
+                if len(values) == 1:
+                    values = values[0]
+                data[cw_attrlist[index]] = values
+            users_data.append(data)
+
+        return groups_data, users_data
 
 
 if __name__ == "__main__":
