@@ -23,17 +23,29 @@ class SCHIIRDORPoweredByAction(Action):
     __select__ = yes()
 
     category = "footer"
-    order = 3
+    order = 2
     title = u"Powered by NSAp"
 
     def url(self):
         return u"https://github.com/neurospin/schiirdor"
 
 
+class NeurospinAction(Action):
+    __regid__ = "neurospin"
+    __select__ = yes()
+    category = "footer"
+    order = 1
+    title = _("NeuroSpin")
+
+    def url(self):
+        return "http://i2bm.cea.fr/drf/i2bm/NeuroSpin"
+
+
 def registration_callback(vreg):
 
     # Update the footer
     vreg.register(SCHIIRDORPoweredByAction)
+    vreg.register(NeurospinAction)
     vreg.unregister(HelpAction)
     vreg.unregister(AboutAction)
     vreg.unregister(PoweredByAction)

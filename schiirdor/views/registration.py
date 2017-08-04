@@ -24,6 +24,7 @@ from cubicweb.web import controller
 from cubicweb.web import Redirect, ValidationError, ProcessFormError
 from cubicweb.web.httpcache import NoHTTPCacheManager
 from cubicweb.web.views import urlrewrite
+from cubicweb import _
 
 # Cubes import
 from cubes.schiirdor.ldapfeed import LDAPConnection

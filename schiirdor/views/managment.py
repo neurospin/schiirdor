@@ -25,12 +25,17 @@ from cubicweb.web.views.ajaxcontroller import ajaxfunc
 from cubicweb.web.views.reledit import reledit_form as cw_reledit_form
 from cubicweb.web.views.reledit import AutoClickAndEditFormView
 from logilab.common.decorators import monkeypatch
+from cubicweb import _
 
 # Cubes import
 from .predicates import trust_authenticated
 from cubes.schiirdor.ldapfeed import LDAPConnection
 from cubes.trustedauth.cryptutils import build_cypher
 
+
+###############################################################################
+# Sync button
+###############################################################################
 
 class SCHIIRDORSyncManagementView(StartupView):
     """ Synchronize users and groups to the 'SCHIIRDOR_DESTINATION' ldap based
@@ -43,9 +48,10 @@ class SCHIIRDORSyncManagementView(StartupView):
     cache_max_age = 0 # disable caching
     rql = ("Any F, S, UAA, L, USN, GN WHERE U is CWUser, "
            "U login L, NOT U login IN ('anon', 'admin'), U in_group G, "
-           "NOT G name IN ('managers', 'users', 'guests', 'moderators'), "
-           "G name GN, U firstname F, U surname S, U in_state US, "
-           "US name USN, U primary_email UA?, UA address UAA")
+           "NOT G name IN ({0}), G name GN, U firstname F, U surname S, "
+           "U in_state US, US name USN, U primary_email UA?, UA address UAA")
+    user_rql = ("Any L WHERE U is CWUser, U login L, "
+                "NOT U login IN ('anon', 'admin')")
     src_name = "SCHIIRDOR_DESTINATION"
     src_rql = ("Any X, T, U, C Where X is CWSource, X name 'SCHIIRDOR_DESTINATION', "
                "X type T, X url U, X config C")
@@ -76,17 +82,46 @@ class SCHIIRDORSyncManagementView(StartupView):
         self.w(u"<h1>{0}</h1>".format(self.title))
         self.w(u"</br>")
 
-        # Extract managed users and synchronized
-        rset = self._cw.execute(self.rql)
+        # Get the active group members
+        active_grp_name = self._cw.vreg.config.get("active-group", "")
+        active_grp = connection.is_valid_group(
+            active_grp_name, filter_attributes=True)
+        if active_grp is not None:
+            active_members = active_grp.get("members", [])
+            if not isinstance(active_members, list):
+                active_members = [active_members]
+        else:
+            active_members = None
+        self._cw.session.info("Active members in '{0}': {1}.".format(
+            active_grp_name, active_members))
+
+        # Synchronize managed users with destination source.
+        # TODO: use instance reject groups to format RQL
+        restricted_groups = (
+            self._cw.vreg.config.get("restricted-groups", []) +
+            [self._cw.vreg.config.get("active-group", "")])
+
+        rset = self._cw.execute(
+            self.rql.format(json.dumps(restricted_groups)[1: -1]))
         errors = []
         syncs = []
         users = []
+        activated = []
+        active_users = set()
+        cw_user_group_map = {}
         for firstname, surname, mail, login, status, group in rset.rows:
             if status == "activated":
+
+                # Record active users: user at least in one group
+                active_users.add(login)
+
+                # Record all user associated groups
+                cw_user_group_map.setdefault(group, []).append(login)
             
-                # Create/get tyhe group
+                # Create/get the group
                 grp = connection.is_valid_group(group, filter_attributes=True)
                 if grp is None:
+                    self._cw.session.info("Create user '%s'." % login)
                     connection.create_group(group)
                     grp = connection.is_valid_group(group,
                                                     filter_attributes=True)
@@ -98,19 +133,55 @@ class SCHIIRDORSyncManagementView(StartupView):
 
                 # Create/get the user
                 user = connection.is_valid_login(login)
+                # TODO: use a valid password
                 if user is None:
+                    self._cw.session.info("Create group '%s'." % group)
                     secret = cyphr.encrypt("%128s" % login)
                     connection.create_user(login, secret, firstname,
                                            surname)
 
                 # Update the group members if necessary               
                 if login not in members:
+                    self._cw.session.info(
+                        "Add user '%s' in group '%s'." % (login, group))
                     connection.add_user_in_group(group, login)
                     syncs.append("{0} ({1})".format(login, group))
                 else:
                     users.append("{0} ({1})".format(login, group))
+
+                # Add this user to the active group if requested
+                if active_members is not None:
+                    if login not in active_members:
+                        self._cw.session.info("Activate user '%s'." % login)
+                        connection.add_user_in_group(active_grp_name, login)
+                        activated.append(login)
+                    active_members.append(login)
+                    cw_user_group_map.setdefault(active_grp_name, []).append(
+                        login)
+                
             else:
+                self._cw.session.error("User '%s' is in quarantine." % login)
                 errors.append(login)
+
+        # Remove unecessary user/group relation in destination source
+        groups, _ = connection.dump_users_and_groups()
+        removed = []
+        deactivated = []
+        for group_struct in groups:
+            grpname = group_struct["name"]
+            grpmembers = group_struct.get("members", [])
+            if not isinstance(grpmembers, list):
+                grpmembers = [grpmembers]
+            grpmembers = set(grpmembers)
+            cw_grpmembers = set(cw_user_group_map.get(grpname, []))
+            for login in (grpmembers - cw_grpmembers):
+                self._cw.session.info(
+                    "Remove user '%s' in group '%s'." % (login, grpname))
+                connection.remove_user_from_group(grpname, login)
+                if grpname == active_grp_name:
+                    deactivated.append(login)
+                else:
+                    removed.append("{0} ({1})".format(login, grpname))
 
         # Close connection
         connection.close()
@@ -122,13 +193,30 @@ class SCHIIRDORSyncManagementView(StartupView):
             errors.append("No data.")
         if len(users) == 0:
             users.append("No data.")
-        self.w(u"<h3>Newly synchronized users</h3>")
+        if len(activated) == 0:
+            activated.append("No data.")
+        if len(deactivated) == 0:
+            deactivated.append("No data.")
+        if len(removed) == 0:
+            removed.append("No data.")
+        self.w(u"<h3>Synchronized users</h3>")
         self.w(u"{0}".format("-".join(syncs)))
-        self.w(u"<h3>Existing users in destination LDAP</h3>")
+        self.w(u"<h3>Desynchronized users</h3>")
+        self.w(u"{0}".format("-".join(removed)))
+        self.w(u"<h3>Activated users</h3>")
+        self.w(u"{0}".format("-".join(activated)))
+        self.w(u"<h3>Deactivated users</h3>")
+        self.w(u"{0}".format("-".join(deactivated)))
+        self.w(u"<h3>Existing users</h3>")
         self.w(u"{0}".format("-".join(users)))
-        self.w(u"<h3>Desactivated users</h3>")
+        self.w(u"<h3>Quarantine users</h3>")
         self.w(u"{0}".format("-".join(errors)))
 
+
+
+###############################################################################
+# Groups button
+###############################################################################
 
 class SCHIIRDORUserManagementView(StartupView):
     """ Manage user associated groups.
@@ -155,23 +243,27 @@ class SCHIIRDORUserManagementView(StartupView):
 
 @monkeypatch(AutoClickAndEditFormView)
 def _compute_formid_value(self, rschema, role, rvid, formid):
-    """  Filter the user associed groups that will be displayed in the edit view.
+    """  Filter the user associed groups that will be displayed in the edit
+    view.
     """
-    if (self.entity.__class__.__name__ == "CWUser" and rschema == "in_group"
-            and "managers" not in [grp.name for grp in self._cw.user.in_group]):
-        restriction = tuple(self._cw.vreg.config["restricted-groups"])
-        related_rset = self._cw.session.execute(
-            "Any G Where U eid '{0}', U in_group G, NOT G name IN {1}".format(
-                self.entity.eid, repr(restriction)))
-    else:
-        related_rset = self.entity.related(rschema.type, role)
-    if related_rset:
-        value = self._cw.view(rvid, related_rset)
-    else:
-        value = self._compute_default_value(rschema, role)
-    if not self._should_edit_relation(rschema, role):
-        return None, value
-    return formid, value
+    with self._cw.session.repo.internal_cnx() as cnx:
+        if (self.entity.__class__.__name__ == "CWUser" and rschema == "in_group"
+                and "managers" not in [grp.name for grp in self._cw.user.in_group]):
+            restriction = tuple(
+                self._cw.vreg.config["restricted-groups"] +
+                [self._cw.vreg.config["active-group"]])
+            related_rset = cnx.execute(
+                "Any G Where U eid '{0}', U in_group G, NOT G name IN "
+                "{1}".format(self.entity.eid, repr(restriction)))
+        else:
+            related_rset = self.entity.related(rschema.type, role)
+        if related_rset:
+            value = self._cw.view(rvid, related_rset)
+        else:
+            value = self._compute_default_value(rschema, role)
+        if not self._should_edit_relation(rschema, role):
+            return None, value
+        return formid, value
 
 
 @ajaxfunc(output_type="xhtml")
@@ -190,7 +282,8 @@ def reledit_form(self):
 
     html = self._call_view(view, **args)
     if "managers" not in [grp.name for grp in self._cw.user.in_group]:
-        for name in req.vreg.config["restricted-groups"]:
+        for name in (req.vreg.config["restricted-groups"] + 
+                [self._cw.vreg.config["active-group"]]):
             regex = '<option value="[0-9]*">{1}.*</option>'.format(
                 self._cw.form['eid'], name)
             html = re.sub(regex, "", html)
@@ -229,22 +322,9 @@ class SCHIIRDORUsersTable(EntityTableView):
     }
 
 
-class SCHIIRDORGroupsManagementView(StartupView):
-    """ Manage groups.
-    """
-    __regid__ = "shiirdor.groups-management"
-    title = _("Manage Groups")
-    __select__ = StartupView.__select__ & match_user_groups("managers")
-    cache_max_age = 0 # disable caching
-    rql = ("Any G,GN ORDERBY GN WHERE G is CWGroup, G name GN, NOT G "
-           "name 'owners'")
-
-    def call(self, **kwargs):
-        self.w(u"<h1>{0}</h1>".format(self.title))
-        self.w(add_etype_button(self._cw, "CWGroup"))
-        self.w(u"<div class='clear'></div>")
-        self.wview('shiirdor.groups-table', self._cw.execute(self.rql))
-
+###############################################################################
+# Import users&groups button
+###############################################################################
 
 class SCHIIRDORImportView(StartupView):
     """ Import users and groups from the 'SCHIIRDOR_DESTINATION' ldap resource.
@@ -280,49 +360,123 @@ class SCHIIRDORImportView(StartupView):
             raise Exception("Source '{0}' must be of 'ldapfeed' "
                             "type.".format(self.src_name))
         connection = LDAPConnection(seid, self.src_name, stype, surl, sconfig,
-                                    login, password)
+                                    login, password, verbose=0)
 
-        # Create missing users and groups entities and in_group relation.
+        # Create missing users and groups entities and associated relations via
+        # the 'in-group' relation.
         groups_data, users_data = connection.dump_users_and_groups()
+        allowed_logins = []
+        allowed_groups = {}
+        self.w(u"<ul>")
         with self._cw.session.repo.internal_cnx() as cnx:
+
+            # create new users
             for user_info in users_data:
                 req = "Any X WHERE X is CWUser, X login '{0}'".format(
                     user_info["login"])
+                allowed_logins.append(user_info["login"])
                 rset = cnx.execute(req)
                 if rset.rowcount == 0:
-                    print("Creating user '{0}'...".format(user_info["login"]))
+                    self.w(u"<li>[info] creating user '{0}'...</li>".format(
+                        user_info["login"]))
                     req = "INSERT CWUser X: "
                     for attribute, value in user_info.items():
                         req += " X %(attribute)s '%(value)s'," % {
                             "attribute": attribute, "value": value}
                     req += "X in_group G WHERE G name 'users'"
                     rset = cnx.execute(req)
+
+            # create new groups
             for group_info in groups_data:
                 grpname = group_info["name"]
                 req = "Any X WHERE X is CWGroup, X name '{0}'".format(grpname)
                 rset = cnx.execute(req)
                 if rset.rowcount == 0:
-                    print("Creating group '{0}'...".format(grpname))
+                    self.w(u"<li>[info] creating group '{0}'...</li>".format(
+                        grpname))
                     req = "INSERT CWGroup X: X name '{0}'".format(grpname)
                     rset = cnx.execute(req)
+
+                # link group associated users
                 members = group_info.get("members", [])
                 if not isinstance(members, list):
                     members = [members]
                 for login in members:
+                    if login not in allowed_logins:
+                        self.w(u"<li>[warn] unexpected user '{0}' in group "
+                                "'{1}'.</li>".format(login, grpname))
+                        continue
+                    allowed_groups.setdefault(login, []).append(grpname)
                     req = ("Any X WHERE X is CWUser, X login '{0}', "
                            "X in_group G, G name '{1}'".format(login, grpname))
                     rset = cnx.execute(req) 
                     if rset.rowcount == 0:
-                        print("Adding relation '{0}' in_group '{1}'...".format(
-                            login, grpname))
+                        self.w(u"<li>[info] adding relation '{0}' in_group "
+                                "'{1}'...</li>".format(login, grpname))
                         req = ("SET X in_group G WHERE X is CWUser, "
                                "X login '{0}', G is CWGroup, "
                                "G name '{1}'".format(login, grpname))
                         rset = cnx.execute(req)
             cnx.commit()
 
-        # Close connection
+        # Delete extra users and groups.
+        with self._cw.session.repo.internal_cnx() as cnx:
+            
+            # get all CW users
+            users = set([
+                row[0]
+                for row in cnx.execute("Any L WHERE X is CWUser, X login L")])
+            users -= {"admin"}
+
+            # delete unknown users
+            for login in users:
+                if login not in allowed_logins:
+                    self.w(u"<li>[info] removing user '{0}'...</li>".format(
+                        login))
+                    req = "DELETE CWUser X Where X login '{0}'".format(login)
+                    rset = cnx.execute(req)
+
+                # delete user associated groups
+                req = ("Any N WHERE X is CWUser, X login '{0}', X in_group G, "
+                       "G name N".format(login))
+                groups = set([row[0]for row in cnx.execute(req)])
+                groups -= set(self._cw.vreg.config["restricted-groups"])
+                for grpname in groups:
+                    if grpname not in allowed_groups.get(login, []):
+                        self.w(u"<li>[info] removing group '{0}'..."
+                                "</li>".format(grpname))
+                        req = "DELETE CWGroup X Where X name '{0}'".format(
+                            grpname)
+                        rset = cnx.execute(req)
+            cnx.commit()
+
+        # Close ldap connection
         connection.close()
+
+        # Goodbye message
+        self.w(u"<li>done.</li>")
+        self.w(u"</ul>")
+
+
+###############################################################################
+# Create groups button
+###############################################################################
+
+class SCHIIRDORGroupsManagementView(StartupView):
+    """ Manage groups.
+    """
+    __regid__ = "shiirdor.groups-management"
+    title = _("Manage Groups")
+    __select__ = StartupView.__select__ & match_user_groups("managers")
+    cache_max_age = 0 # disable caching
+    rql = ("Any G,GN ORDERBY GN WHERE G is CWGroup, G name GN, NOT G "
+           "name 'owners'")
+
+    def call(self, **kwargs):
+        self.w(u"<h1>{0}</h1>".format(self.title))
+        self.w(add_etype_button(self._cw, "CWGroup"))
+        self.w(u"<div class='clear'></div>")
+        self.wview('shiirdor.groups-table', self._cw.execute(self.rql))
 
 
 class SCHIIRDORGroupsTable(EntityTableView):
@@ -341,6 +495,10 @@ class SCHIIRDORGroupsTable(EntityTableView):
     }
 
 
+###############################################################################
+# Create users hidden button
+###############################################################################
+
 class SCHIIRDORAdminUsersManagementView(StartupView):
     """ Manage users.
     """
@@ -355,7 +513,7 @@ class SCHIIRDORAdminUsersManagementView(StartupView):
         self.w(u"<h1>{0}</h1>".format(self.title))
         self.w(add_etype_button(self._cw, "CWUser"))
         self.w(u"<div class='clear'></div>")
-        self.wview('shiirdor.admin-users-table2', self._cw.execute(self.rql))
+        self.wview('shiirdor.admin-users-table', self._cw.execute(self.rql))
 
 
 class SCHIIRDORAdminUsersTable(EntityTableView):
@@ -369,6 +527,10 @@ class SCHIIRDORAdminUsersTable(EntityTableView):
         "user": MainEntityColRenderer(),
     }
 
+
+###############################################################################
+# Update registry
+###############################################################################
 
 def registration_callback(vreg):
     

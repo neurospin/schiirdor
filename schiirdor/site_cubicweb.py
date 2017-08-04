@@ -28,11 +28,28 @@ options = (
       'group': 'schiirdor',
       'level': 3,
       }),
-    ('restricted-groups',
-     {'type' : 'csv',
-      'default': 'managers,users,guests,moderators',
-      'help': 'A list of groups the moderators cannot administrate.',
+    ('check-user-register-in-cw',
+     {'type' : 'yn',
+      'default': True,
+      'help': 'If true user must be registered in CubicWeb to be able to '
+              'connect the service, otherwise trust the source only.',
       'group': 'schiirdor',
       'level': 4,
+      }),
+    ('active-group',
+     {'type' : 'string',
+      'default': u'',
+      'help': 'A group name used to put new user in quarantine. If specified, '
+              'users will be automatically added to this group when '
+              'moderators grant them access permissions.',
+      'group': 'schiirdor',
+      'level': 5,
+      }),
+    ('restricted-groups',
+     {'type' : 'csv',
+      'default': 'managers,users,guests,owners,moderators',
+      'help': 'A list of groups the moderators cannot administrate.',
+      'group': 'schiirdor',
+      'level': 6,
       })
 )

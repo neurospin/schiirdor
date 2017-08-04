@@ -9,7 +9,7 @@
 # Configure sources
 _DESTINATION_LDAP_CONFIGURATION_DETAILS = {
     "synchronize": "no",
-    "synchronization-interval": "30min",
+    "synchronization-interval": "1min",
     "data-cnx-dn": u"cn={0},dc=intra,dc=cea,dc=fr",
     "data-cnx-password": u"",
     "user-base-dn": u"ou=Users,dc=intra,dc=cea,dc=fr",
@@ -23,11 +23,11 @@ _DESTINATION_LDAP_CONFIGURATION_DETAILS = {
     "user-default-group": "",
     "group-scope": "SUBTREE",
     "group-classes": "posixGroup",
-    "group-filter": "(cn={0})",
+    "group-filter": "(cn={0})"
 }
 _SOURCE_LDAP_CONFIGURATION_DETAILS = {
     "synchronize": "no",
-    "synchronization-interval": "30min",
+    "synchronization-interval": "1min",
     "data-cnx-dn": u"{0}@intra.cea.fr",
     "data-cnx-password": u"",
     "user-base-dn": (u"OU=NeuroSpin,OU=I2BM,OU=Utilisateurs,OU=DSV,"
@@ -42,7 +42,7 @@ _SOURCE_LDAP_CONFIGURATION_DETAILS = {
     "user-default-group": "",
     "group-scope": "SUBTREE",
     "group-classes": "",
-    "group-filter": "",
+    "group-filter": ""
 }
 
 
@@ -139,12 +139,20 @@ _DESTINATION_LDAP_ATTRIBUTES = {
     u"url": u"ldap://127.0.0.1/",
     u"parser": u"ldapfeed"
 }
+#_SOURCE_LDAP_ATTRIBUTES = {
+#    u"name": u"SCHIIRDOR_SOURCE",
+#    u"type": u"ldapfeed",
+#    u"config": _escape_rql(
+#        _LDAP_CONFIGURATION % _SOURCE_LDAP_CONFIGURATION_DETAILS),
+#    u"url": u"ldaps://intra.cea.fr/",
+#    u"parser": u"ldapfeed"
+#}
 _SOURCE_LDAP_ATTRIBUTES = {
     u"name": u"SCHIIRDOR_SOURCE",
     u"type": u"ldapfeed",
     u"config": _escape_rql(
-        _LDAP_CONFIGURATION % _SOURCE_LDAP_CONFIGURATION_DETAILS),
-    u"url": u"ldaps://intra.cea.fr/",
+        _LDAP_CONFIGURATION % _DESTINATION_LDAP_CONFIGURATION_DETAILS),
+    u"url": u"ldap://127.0.0.1/",
     u"parser": u"ldapfeed"
 }
 

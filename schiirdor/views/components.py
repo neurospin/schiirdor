@@ -173,5 +173,5 @@ def registration_callback(vreg):
         vreg.register(bclass)
 
     vreg.unregister(BookmarksBox)
-    vreg.unregister(SearchBox)
+    #vreg.unregister(SearchBox)
     vreg.unregister(BSAuthenticatedUserStatus)

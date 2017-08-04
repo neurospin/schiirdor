@@ -15,7 +15,6 @@ from cubicweb.web.views import authentication, actions, basecontrollers
 from cubicweb.web.views.authentication import LoginPasswordRetriever
 
 # Cubes import
-from cubes.schiirdor.ldapfeed import LDAPConnection
 from cubes.trustedauth.cryptutils import build_cypher
 
 
@@ -25,7 +24,7 @@ class SSOUserRetriever(authentication.WebAuthInfoRetreiver):
     single ID and password to gain access to a connected system or systems
     without using different usernames or passwords. The credentials are
     checked in the 'SCHIIRDOR_SOURCE' ldap based resource. All the logged
-    users will have a 'trusted_cwuser' attribute attached to thei sessions.
+    users will have a 'trusted_cwuser' attribute attached to their sessions.
 
     Special login: 'admin' that is directly authentificated by the CubicWeb
     authentification system.
@@ -33,12 +32,8 @@ class SSOUserRetriever(authentication.WebAuthInfoRetreiver):
     """
     __regid__ = "sso-user-retriever"
     order = 0
-    auth_rql = ("Any X WHERE X is CWUser, X login %(login)s")
     trusted_rql = ("Any X WHERE X is CWUser, X login %(login)s, "
                    "X in_group G, G name 'moderators'")
-    src_name = "SCHIIRDOR_SOURCE"
-    src_rql = ("Any X, T, U, C Where X is CWSource, X name 'SCHIIRDOR_SOURCE', "
-               "X type T, X url U, X config C")
 
     def authentication_information(self, req):
         """ Retrieve authentication information from the given request, raise
@@ -47,14 +42,14 @@ class SSOUserRetriever(authentication.WebAuthInfoRetreiver):
         Return login and password with secret crypted shared key in the case
         of sso authentification.
         """
-        self.debug("web authenticator building auth info")
+        self.info("Web authenticator building auth info.")
         login, password = req.get_authorization()
         if not login:
             raise authentication.NoAuthInfo()
         cyphr = build_cypher(self._cw.config._secret)
         if login != "admin":
             secret = base64.encodestring(cyphr.encrypt("%128s" % login))
-            return login, {"password": secret, "secret": password}
+            return login, {"password": password, "secret": secret}
         else:
             return login, {"password": password}
 
@@ -62,40 +57,17 @@ class SSOUserRetriever(authentication.WebAuthInfoRetreiver):
         """ Callback when return authentication information have opened a
         repository connection successfully.
         """
+        # Add a flag for remote user
+        self.info("Web authenticator running post authentication callback.")
         # Nothing to do for admin login
         if login == "admin":
             return
-        self.debug("Web authenticator running post authentication callback.")
-        # If the login is not in the CW registration instance
-        with session.repo.internal_cnx() as cnx:
-            rset = cnx.execute(self.auth_rql, {"login": login})
-        #if rset.rowcount != 1:
-            #raise AuthenticationError()
-        # 2003 Active Directory allows anonymous binds. So not providing a
-        # user id at all will still pass a simple bind check, if the only
-        # thing being tested is whether simple_bind_s() throws an error.
-        # 2003 Active Directory does require authentication for any searches
-        # that aren't attributes of the rootDSE.
-        with session.repo.internal_cnx() as cnx:
-            rset = cnx.execute(self.src_rql)
-        if rset.rowcount != 1:
-            raise Exception("No resource attached to this RQL: "
-                            "{0}.".format(self.src_rql))
-        seid, stype, surl, sconfig = rset[0]
-        try:
-            connection = LDAPConnection(seid, self.src_name, stype, surl,
-                                        sconfig, login, authinfo["secret"])
-            user_info = connection.is_valid_login(login,
-                                                  filter_attributes=True)
-            connection.close()
-        except:
-            raise AuthenticationError()
-        # Add a flag for remote user
         with session.repo.internal_cnx() as cnx:
             rset = cnx.execute(self.trusted_rql, {"login": login})
         if rset.rowcount == 0:
             if "secret" not in authinfo:
-                raise AuthenticationError()
+                raise AuthenticationError(
+                    "At this stage expect SSO user only.")
             setattr(session, "trusted_cwuser", True)
 
     def request_has_auth_info(self, req):
@@ -107,4 +79,4 @@ class SSOUserRetriever(authentication.WebAuthInfoRetreiver):
 
 def registration_callback(vreg):
     vreg.register(SSOUserRetriever)
-    vreg.unregister(LoginPasswordRetriever)
+    #vreg.unregister(LoginPasswordRetriever)

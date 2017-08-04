@@ -27,7 +27,7 @@ LDAP_SCOPES = {"BASE": ldap.SCOPE_BASE,
 
 
 class LDAPConnection(object):
-    """ Connection to an Anctive Directory.
+    """ Connection to an Active Directory.
     """
 
     def __init__(self, seid, sname, stype, surl, sconfig, login, password,
@@ -78,6 +78,22 @@ class LDAPConnection(object):
         """ Close the connection.
         """
         self.ldapobject.unbind_s()
+
+    def is_valid_user(self, login, password):
+        """ Check the user exists in the configured active directory.
+        """
+        searchstr = filter_format(
+            "(%s=%s)", (self.config["user-login-attr"], login))
+        if self.verbose > 0:
+            pprint(searchstr)
+        result = self.ldapobject.search_s(self.config["user-base-dn"],
+                                          globals()[self.config["user-scope"]],
+                                          searchstr,
+                                          None)
+        if self.verbose > 0:
+            pprint(result)
+        user_dn = result[0][0]
+        self.ldapobject.simple_bind_s(user_dn, password)
 
     def is_valid_login(self, login, filter_attributes=False):
         """ Check the login exists in the configured active directory.
@@ -220,6 +236,24 @@ class LDAPConnection(object):
             pprint(attrs)
         return self.ldapobject.modify_s(groupdn, attrs)
 
+    def remove_user_from_group(self, group, login):
+        """ Delete a user from a group.
+
+        Note:
+
+            No existence check is performed at this stage.
+        """
+        groupattr = collections.OrderedDict(self.config["group-attrs-map"])
+        group_key = groupattr.keys()[groupattr.values().index("members")]
+        groupdn = "cn={0},{1}".format(group, self.config["group-base-dn"])
+        attrs = [
+            (ldap.MOD_DELETE, str(group_key), str(login))
+        ]
+        if self.verbose > 0:
+            pprint(groupdn)
+            pprint(attrs)
+        return self.ldapobject.modify_s(groupdn, attrs)
+
     def dump_users_and_groups(self):
         """ Dump all the users and groups.
         """
@@ -275,9 +309,93 @@ class LDAPConnection(object):
 
 
 if __name__ == "__main__":
-    c = LDAPConnection("127.0.0.1", "cn=admin", "kelbordel", is_active_directory=False,
-                 ldap_ssl=False, loginextra=",dc=intra,dc=cea,dc=fr")
-    #print c.create_group("OU=Groups,DC=intra,DC=cea,DC=fr", "Test2")
-    #print c.create_user("OU=Users,DC=intra,DC=cea,DC=fr", "toto", "215646", "firstname", "lastname")
-    print c.add_user_in_group("OU=Groups,DC=intra,DC=cea,DC=fr", "Test2", "toto")
+    config = """
+    # Is the repository responsible to automatically import content from this
+    # source? You should say yes unless you don't want this behaviour or if you use
+    # a multiple repositories setup, in which case you should say yes on one
+    # repository, no on others.
+    synchronize=no
+
+    # Interval in seconds between synchronization with the external source (default
+    # to 5 minutes, must be >= 1 min).
+    synchronization-interval=1min
+
+    # Maximum time allowed for a synchronization to be run. Exceeded that time, the
+    # synchronization will be considered as having failed and not properly released
+    # the lock, hence it won't be considered
+    max-lock-lifetime=10min
+
+    # Should already imported entities not found anymore on the external source be
+    # deleted?
+    delete-entities=no
+
+    # Time before logs from datafeed imports are deleted.
+    logs-lifetime=10d
+
+    # Timeout of HTTP GET requests, when synchronizing a source.
+    http-timeout=1min
+
+    # authentication mode used to authenticate user to the ldap.
+    auth-mode=simple
+
+    # realm to use when using gssapi/kerberos authentication.
+    #auth-realm=
+
+    # user dn to use to open data connection to the ldap (eg used to respond to rql
+    # queries). Leave empty for anonymous bind
+    data-cnx-dn=cn={0},dc=intra,dc=cea,dc=fr
+
+    # password to use to open data connection to the ldap (eg used to respond to
+    # rql queries). Leave empty for anonymous bind.
+    data-cnx-password=
+
+    # base DN to lookup for users; disable user importation mechanism if unset
+    user-base-dn=ou=Users,dc=intra,dc=cea,dc=fr
+
+    # user search scope (valid values: "BASE", "ONELEVEL", "SUBTREE")
+    user-scope=SUBTREE
+
+    # classes of user (with Active Directory, you want to say "user" here)
+    user-classes=inetOrgPerson
+
+    # additional filters to be set in the ldap query to find valid users
+    user-filter=
+
+    # attribute used as login on authentication (with Active Directory, you want to
+    # use "sAMAccountName" here)
+    user-login-attr=uid
+
+    # name of a group in which ldap users will be by default. You can set multiple
+    # groups by separating them by a comma.
+    user-default-group=
+
+    # map from ldap user attributes to cubicweb attributes (with Active Directory,
+    # you want to use
+    # sAMAccountName:login,mail:email,givenName:firstname,sn:surname)
+    user-attrs-map=userPassword:upassword,mail:mail,uid:login,givenName:firstname,sn:surname
+
+    # base DN to lookup for groups; disable group importation mechanism if unset
+    group-base-dn=ou=Groups,dc=intra,dc=cea,dc=fr
+
+    # group search scope (valid values: "BASE", "ONELEVEL", "SUBTREE")
+    group-scope=SUBTREE
+
+    # classes of group
+    group-classes=posixGroup
+
+    # additional filters to be set in the ldap query to find valid groups
+    group-filter=(cn={0})
+
+    # map from ldap group attributes to cubicweb attributes
+    group-attrs-map=memberUid:members,cn:name,gidNumber:gid
+    """
+    c = LDAPConnection(
+        seid=0, sname="SOURCE", stype="ldapfeed",
+        surl="ldap://127.0.0.1/", sconfig=config, login="admin",
+        password="alpine", verbose=1)
+    if 0:
+        print c.create_group("group1")
+        print c.create_user("user1", "password", "firstname", "lastname")
+        print c.add_user_in_group("group1", "user1")
+    c.is_valid_user("a", "ab")
 
