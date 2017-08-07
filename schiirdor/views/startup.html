@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>Creative - Start Bootstrap Theme</title>
+
+    %(css)s
+
+</head>
+
+<body id="page-top">
+
+    <nav id="mainNav" class="navbar navbar-default navbar-fixed-top">
+        <div class="container-fluid">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                    <span class="sr-only">Toggle navigation</span> Menu <i class="fa fa-bars"></i>
+                </button>
+                <a class="navbar-brand page-scroll" href="%(login-url)s">LOGIN</a>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+
+                <ul class="nav navbar-nav navbar-right">
+                    <li>
+                        <a class="page-scroll" href="#start">GETTING STARTED</a>
+                    </li>
+                    <li>
+                        <a class="page-scroll" href="#options">FIND OUT MORE</a>
+                    </li>
+                    <li>
+                        <a class="page-scroll" href="#contact">CONTACT</a>
+                    </li>
+                </ul>
+            </div>
+            <!-- /.navbar-collapse -->
+        </div>
+        <!-- /.container-fluid -->
+    </nav>
+
+    <header style="background-image:url('%(header-url)s');">
+        <div class="header-content">
+            <div class="header-content-inner">
+                <h1 id="homeHeading">Welcome to the user rights management system</h1>
+                <hr>
+                <p>This service has been built to help consortia during the
+                   access rights moderation: who can access which datasets.</p>
+                <a href="#start" class="btn btn-primary btn-xl page-scroll">GETTING STARTED</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="bg-primary" id="start">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 col-lg-offset-2 text-center">
+                    <h2 class="section-heading">We've got what you need!</h2>
+                    <hr class="light">
+                    <p class="text-faded"> Only specific people have the moderation
+                      privilege. To see the moderation options you need to
+                      be logged. When logged in if no option is displayed and if
+                      you think it should, please use the mail of the contact section.</p>
+                    <a href="%(login-url)s" class="page-scroll btn btn-default btn-xl sr-button">LOG IN</a>
+                    <a href="#options" class="page-scroll btn btn-default btn-xl sr-button">FIND OUT MORE</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="options">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-12 text-center">
+                    <h2 class="section-heading">The moderation options</h2>
+                    <hr class="primary">
+                </div>
+            </div>
+        </div>
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-3 col-md-6 text-center">
+                    <div class="service-box">
+                        <i class="fa fa-4x fa-universal-access text-primary sr-icons"></i>
+                        <h3>Logout</h3>
+                        <p class="text-muted">Click on this button to logout.</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 text-center">
+                    <div class="service-box">
+                        <i class="fa fa-4x fa-cloud-upload text-primary sr-icons"></i>
+                        <h3>Synchronize</h3>
+                        <p class="text-muted">Click on this button to synchronize 
+                          the modification you've made with the central repository.</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 text-center">
+                    <div class="service-box">
+                        <i class="fa fa-4x fa-users text-primary sr-icons"></i>
+                        <h3>Groups</h3>
+                        <p class="text-muted">Click on this button to moderate 
+                          all the users by simply selecting graphycally the groups the
+                          users have access to.</p>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 text-center">
+                    <div class="service-box">
+                        <i class="fa fa-4x fa-user-secret text-primary sr-icons"></i>
+                        <h3>Login</h3>
+                        <p class="text-muted">Do not forget to login in order
+                          to see these options.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <aside class="bg-dark">
+        <div class="container text-center">
+            <div class="call-to-action">
+                <h2>Free Software</h2>
+                <a href="https://github.com/neurospin/schiirdor" class="btn btn-default btn-xl sr-button">Download Now!</a>
+            </div>
+        </div>
+    </aside>
+
+    <section id="contact">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-8 col-lg-offset-2 text-center">
+                    <h2 class="section-heading">Let's Get In Touch!</h2>
+                    <hr class="primary">
+                    <p>Any questions! Send us an email and we
+                      will get back to you as soon as possible!</p>
+                </div>
+                <div class="col-lg-4 col-lg-offset-2 text-center">
+                    <i class="fa fa-at fa-3x sr-contact"></i>
+                    <p><a href="http://i2bm.cea.fr/drf/i2bm/Pages/NeuroSpin.aspx">CEA, NeuroSpin</a></p>
+                </div>
+                <div class="col-lg-4 text-center">
+                    <i class="fa fa-envelope-o fa-3x sr-contact"></i>
+                    <p><a href="mailto:%(contact-email)s">schiirdor@cea.fr</a></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    %(js)s
+
+</body>
+
+</html>

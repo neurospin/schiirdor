@@ -6,3 +6,11 @@ select[multiple], select[size] {
     margin-right: 0;
     margin-left: 0;
 }
+
+.navbar-nav.navbar-right:last-child {
+    margin-right: 0;
+}
+
+.navbar-nav {
+    margin: 10px;
+}

@@ -260,23 +260,78 @@ class SCHIIRDORSyncManagementView(StartupView):
 
         # Display goodbye message
         if len(errors) == 0:
-            errors.append("No data.")
-        if len(activated) == 0:
-            activated.append("No data.")
-        if len(deactivated) == 0:
-            deactivated.append("No data.")
-        self.w(u"<h3>Synchronized users</h3>")
-        self.w(u"{0}".format("-".join(syncs)))
-        self.w(u"<h3>Desynchronized users</h3>")
-        self.w(u"{0}".format("-".join(removed)))
-        self.w(u"<h3>Activated users</h3>")
-        self.w(u"{0}".format("-".join(activated)))
-        self.w(u"<h3>Deactivated users</h3>")
-        self.w(u"{0}".format("-".join(deactivated)))
-        self.w(u"<h3>Existing users</h3>")
-        self.w(u"{0}".format("-".join(users)))
-        self.w(u"<h3>Quarantine users</h3>")
+            errors.append("No user")
+        self.w(u"<h3>Applied rights modifications</h3>")
+        self.w(unicode(
+            self.summary_table(syncs, removed, activated,deactivated)))
+        self.w(u"<h3>Current rights</h3>")
+        self.w(unicode(self.rights_summary_table(users)))
+        self.w(u"<h3>Blocked users</h3>")
         self.w(u"{0}".format("-".join(errors)))
+
+    def rights_summary_table(self, users):
+        """ Create a rights summary table.
+        """
+        logins = sorted(users.keys())
+        html = '<table class="table table-striped">'
+        html += '<thead>'
+        html += '<tr>'
+        html += '<th>Login</th>'
+        html += '<th>In groups</th>'
+        html += '</tr>'
+        html += '</thead>'
+        html += '<tbody>'
+        if len(logins) > 0:
+            for item in logins:
+                html += '<tr>'
+                html += '<td>{0}</td>'.format(item)
+                html += '<td>{0}</td>'.format(" - ".join(users[item]))
+                html += '</tr>'
+        else:
+            html += '<tr>'
+            html += '<td>no modification</td>'
+            html += '<td></td>' * 2
+            html += '</tr>'
+        html += '</tbody>'
+        html += '</table>'
+        return html
+
+    def summary_table(self, syncs, removed, activated, deactivated):
+        """ Create a summary table.
+        """
+        logins = sorted(set(syncs.keys() + removed.keys()))
+        html = '<table class="table table-striped">'
+        html += '<thead>'
+        html += '<tr>'
+        html += '<th>Login</th>'
+        html += '<th>Activate</th>'
+        html += '<th>Deactivate</th>'
+        html += '<th>Add in groups</th>'
+        html += '<th>Remove from groups</th>'
+        html += '</tr>'
+        html += '</thead>'
+        html += '<tbody>'
+        if len(logins) > 0:
+            for item in logins:
+                html += '<tr>'
+                html += '<td>{0}</td>'.format(item)
+                html += '<td>{0}</td>'.format(
+                    "yes" if item in activated else "")
+                html += '<td>{0}</td>'.format(
+                    "yes" if item in deactivated else "")
+                html += '<td>{0}</td>'.format(
+                    " - ".join(syncs[item]) if item in syncs else "")
+                html += '<td>{0}</td>'.format(
+                    " - ".join(removed[item]) if item in removed else "")
+                html += '</tr>'
+        else:
+            html += '<tr>'
+            html += '<td>no data</td>'
+            html += '<td></td>' * 4
+            html += '</tr>'
+        html += '</tbody>'
+        html += '</table>'
+        return html
 
     def sendmail(self, sender_email, recipients_list, subject,
                  body, smtp_host, smtp_port):

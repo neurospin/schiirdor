@@ -31,6 +31,9 @@ except ImportError:
     _ = unicode
 
 
+SearchBox.__select__ = match_user_groups("managers")
+
+
 class AnonRegisterButton(HeaderComponent):
     """ Build a registration button displayed in the header.
     This button will only be visible if logged as an anonymous user.
@@ -173,5 +176,4 @@ def registration_callback(vreg):
         vreg.register(bclass)
 
     vreg.unregister(BookmarksBox)
-    #vreg.unregister(SearchBox)
     vreg.unregister(BSAuthenticatedUserStatus)
