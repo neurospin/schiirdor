@@ -11,6 +11,8 @@ import collections
 import base64
 import re
 import json
+import smtplib
+from email.mime.text import MIMEText
 
 # CubicWeb import
 from cubicweb import tags
@@ -46,6 +48,7 @@ class SCHIIRDORSyncManagementView(StartupView):
                   match_user_groups("managers", "moderators"))
     title = _("Synchronize Users & Groups")
     cache_max_age = 0 # disable caching
+
     rql = ("Any F, S, UAA, L, USN, GN WHERE U is CWUser, "
            "U login L, NOT U login IN ('anon', 'admin'), U in_group G, "
            "NOT G name IN ({0}), G name GN, U firstname F, U surname S, "
@@ -55,6 +58,23 @@ class SCHIIRDORSyncManagementView(StartupView):
     src_name = "SCHIIRDOR_DESTINATION"
     src_rql = ("Any X, T, U, C Where X is CWSource, X name 'SCHIIRDOR_DESTINATION', "
                "X type T, X url U, X config C")
+
+    user_email_subject = "[SCHIIRDOR] Moderators modified your access rights"
+    user_email_body = "Dear %(login)s,\n\n"
+    user_email_body += ("The core analysis group moderators modified your "
+                        "access rights to the data repository.\n\n")
+    user_email_body += "Thank you."
+    deactivated_email_body = "Dear %(login)s,\n\n"
+    deactivated_email_body += (
+        "The core analysis group moderators modified your access rights to "
+        "the data repository.\n")
+    deactivated_email_body += ("You have no more access rights.\n\n")
+    deactivated_email_body += "Thank you."
+
+    admin_email_subject = "[SCHIIRDOR] New moderation action"
+    admin_email_body = "'%(login)s' has performed a new moderation action.\n"
+    admin_email_body += "Affected users:\n\n"
+    admin_email_body += "%(affected_users)s"
 
     def call(self, **kwargs):
         """ Start synchronisation with destination source: users and associated
@@ -104,8 +124,8 @@ class SCHIIRDORSyncManagementView(StartupView):
         rset = self._cw.execute(
             self.rql.format(json.dumps(restricted_groups)[1: -1]))
         errors = []
-        syncs = []
-        users = []
+        syncs = {}
+        users = {}
         activated = []
         active_users = set()
         cw_user_group_map = {}
@@ -145,9 +165,9 @@ class SCHIIRDORSyncManagementView(StartupView):
                     self._cw.session.info(
                         "Add user '%s' in group '%s'." % (login, group))
                     connection.add_user_in_group(group, login)
-                    syncs.append("{0} ({1})".format(login, group))
+                    syncs.setdefault(login, []).append(group)
                 else:
-                    users.append("{0} ({1})".format(login, group))
+                    users.setdefault(login, []).append(group)
 
                 # Add this user to the active group if requested
                 if active_members is not None:
@@ -164,8 +184,12 @@ class SCHIIRDORSyncManagementView(StartupView):
                 errors.append(login)
 
         # Remove unecessary user/group relation in destination source
-        groups, _ = connection.dump_users_and_groups()
-        removed = []
+        groups, users_info = connection.dump_users_and_groups()
+        emails = {}
+        for item in users_info:
+            if "mail" in item:
+                emails[item["login"]] = item["mail"]
+        removed = {}
         deactivated = []
         for group_struct in groups:
             grpname = group_struct["name"]
@@ -181,24 +205,56 @@ class SCHIIRDORSyncManagementView(StartupView):
                 if grpname == active_grp_name:
                     deactivated.append(login)
                 else:
-                    removed.append("{0} ({1})".format(login, grpname))
+                    removed.setdefault(login, []).append(grpname)
 
         # Close connection
         connection.close()
         
+        # Send notification email
+        for login in syncs:
+            if login not in emails:
+                self._cw.session.error("'%s' has no registered email." % login)
+                continue
+            self.sendmail(sender_email=self._cw.vreg.config["sender-addr"],
+                          recipients_list=[emails[login]],
+                          subject=self.user_email_subject,
+                          body=self.user_email_body % {"login": login},
+                          smtp_host=self._cw.vreg.config["smtp-host"],
+                          smtp_port=self._cw.vreg.config["smtp-port"])
+        for login in deactivated:
+            if login not in emails:
+                self._cw.session.error("'%s' has no registered email." % login)
+                continue
+            self.sendmail(sender_email=self._cw.vreg.config["sender-addr"],
+                          recipients_list=[emails[login]],
+                          subject=self.user_email_subject,
+                          body=self.deactivated_email_body % {"login": login},
+                          smtp_host=self._cw.vreg.config["smtp-host"],
+                          smtp_port=self._cw.vreg.config["smtp-port"])
+        admin_reprot = {
+            "syncs": syncs,
+            "removed": removed,
+            "activated": activated,
+            "deactivated": deactivated,
+            "quarantine": errors}
+        self.sendmail(
+            sender_email=self._cw.vreg.config["sender-addr"],
+            recipients_list=self._cw.vreg.config["administrator-emails"],
+            subject=self.admin_email_subject,
+            body=self.admin_email_body % {
+                "affected_users": json.dumps(admin_reprot, indent=4,
+                                             sort_keys=True),
+                "login": self._cw.session.login},
+            smtp_host=self._cw.vreg.config["smtp-host"],
+            smtp_port=self._cw.vreg.config["smtp-port"])
+
         # Display goodbye message
-        if len(syncs) == 0:
-            syncs.append("No data.")
         if len(errors) == 0:
             errors.append("No data.")
-        if len(users) == 0:
-            users.append("No data.")
         if len(activated) == 0:
             activated.append("No data.")
         if len(deactivated) == 0:
             deactivated.append("No data.")
-        if len(removed) == 0:
-            removed.append("No data.")
         self.w(u"<h3>Synchronized users</h3>")
         self.w(u"{0}".format("-".join(syncs)))
         self.w(u"<h3>Desynchronized users</h3>")
@@ -211,6 +267,32 @@ class SCHIIRDORSyncManagementView(StartupView):
         self.w(u"{0}".format("-".join(users)))
         self.w(u"<h3>Quarantine users</h3>")
         self.w(u"{0}".format("-".join(errors)))
+
+    def sendmail(self, sender_email, recipients_list, subject,
+                 body, smtp_host, smtp_port):
+        """ Sends an email.
+
+        Parameters
+        ----------
+        sender_email: string (mandatory)
+            The sender email address.
+        recipients_list: list of str (mandatory)
+            List of the recipients emails addresses.
+        subject: string (mandatory)
+            The email subject.
+        body: string (mandatory)
+            The email body.
+        smtp_host: string (mandatory)
+            The SMTP server address.
+        smtp_port: int (mandatory)
+            The SMTP server port.
+        """
+        msg = MIMEText(body)
+        msg['Subject'] = "{0}".format(subject)
+        msg['To'] = ", ".join(recipients_list)
+        s = smtplib.SMTP(smtp_host, smtp_port)
+        s.sendmail(sender_email, recipients_list, msg.as_string())
+        s.quit()
 
 
 
