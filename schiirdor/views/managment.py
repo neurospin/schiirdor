@@ -10,8 +10,10 @@
 import collections
 import base64
 import re
+import time
 import json
 import smtplib
+import logging
 from email.mime.text import MIMEText
 
 # CubicWeb import
@@ -96,7 +98,7 @@ class SCHIIRDORSyncManagementView(StartupView):
             raise Exception("Source '{0}' must be of 'ldapfeed' "
                             "type.".format(self.src_name))
         connection = LDAPConnection(seid, self.src_name, stype, surl, sconfig,
-                                    login, password)    
+                                    login, password)
 
         # Display title
         self.w(u"<h1>{0}</h1>".format(self.title))
@@ -209,6 +211,20 @@ class SCHIIRDORSyncManagementView(StartupView):
 
         # Close connection
         connection.close()
+
+
+        # Save actions to log file
+        logger = logging.getLogger("schiirdor.moderation")
+        admin_reprot = {
+            "syncs": syncs,
+            "removed": removed,
+            "activated": activated,
+            "deactivated": deactivated,
+            "quarantine": errors}
+        tic = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+        message = "[{0}] {1}".format(self._cw.session.login,
+                                     json.dumps(admin_reprot))
+        logger.info(message)
         
         # Send notification email
         for login in syncs:
@@ -231,12 +247,6 @@ class SCHIIRDORSyncManagementView(StartupView):
                           body=self.deactivated_email_body % {"login": login},
                           smtp_host=self._cw.vreg.config["smtp-host"],
                           smtp_port=self._cw.vreg.config["smtp-port"])
-        admin_reprot = {
-            "syncs": syncs,
-            "removed": removed,
-            "activated": activated,
-            "deactivated": deactivated,
-            "quarantine": errors}
         self.sendmail(
             sender_email=self._cw.vreg.config["sender-addr"],
             recipients_list=self._cw.vreg.config["administrator-emails"],

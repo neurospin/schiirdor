@@ -9,7 +9,10 @@
 # System import
 import getpass
 import base64
+import os
 import json
+import logging
+import time
 
 # CW import
 from cubicweb.server import hook
@@ -22,6 +25,9 @@ from cubes.schiirdor.migration.update_sources import _create_or_update_ldap_data
 from cubes.trustedauth.cryptutils import build_cypher
 from cubes.schiirdor.ldapfeed import LDAPConnection
 from cubes.schiirdor.authplugin import SSORetriever
+
+# Third party import
+from cloghandler import ConcurrentRotatingFileHandler
 
 
 # Define key entry
@@ -42,6 +48,24 @@ class ServerStartupHook(hook.Hook):
         # which may cause reloading pb
         self.debug("Registering SSO authentifier.")
         self.repo.system_source.add_authentifier(SSORetriever())
+
+        # A concurrent log with no rotation keeping no copy
+        logfile = self.repo.vreg.config.get("moderation-log", None)
+        logdir = os.path.dirname(logfile)
+        if logfile is not None and os.path.isdir(logdir):
+            self.info(
+                "Moderation logging will be performed in '{0}'.".format(logfile))
+            logger = logging.getLogger("schiirdor.moderation")
+            rotateHandler = ConcurrentRotatingFileHandler(
+                logfile, "a", maxBytes=0, backupCount=0,)
+            logger.addHandler(rotateHandler)
+            logger.setLevel(logging.INFO)
+            tic = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+            logger.info("[START] Service started {0}.".format(tic))
+        else:
+            self.info("No moderation logging will be performed.")
+            
+
 
 
 class InGroupHook(hook.Hook):
