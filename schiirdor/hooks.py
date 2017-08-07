@@ -9,6 +9,7 @@
 # System import
 import getpass
 import base64
+import json
 
 # CW import
 from cubicweb.server import hook
@@ -26,6 +27,8 @@ from cubes.schiirdor.authplugin import SSORetriever
 # Define key entry
 KEYCONFENTRY = "registration-cypher-seed"
 KEYDISABLEENTRY = "disable-ldapfeed"
+KEYINPUTSRC = "source-config"
+KEYOUTPUTSRC = "destination-config"
 
 
 class ServerStartupHook(hook.Hook):
@@ -99,17 +102,33 @@ class ExternalAuthSourceHook(hook.Hook):
         # Make sure a login and password is provided to contact the external
         # sources on both sides of cw (repo and web)
         cyphr = build_cypher(self.repo.vreg.config._secret)
-        login = raw_input("Enter the destination LDAP based system login: ")
-        password = getpass.getpass(
-            "Enter the destination LDAP based system password: ")
+        src_file = self.repo.vreg.config.get(KEYINPUTSRC).strip()
+        if not src_file:
+            raise ConfigurationError(
+                "Configuration '%s' is missing or empty. "
+                "Please check your configuration file!" % KEYINPUTSRC)
+        src_login, src_password, src_url, src_config = load_source_config(
+            src_file)
+        self.repo.vreg.src_authlogin = base64.encodestring(
+            cyphr.encrypt("%128s" % src_login))
+        self.repo.vreg.src_authpassword = base64.encodestring(
+            cyphr.encrypt("%128s" % src_password))
+        dest_file = self.repo.vreg.config.get(KEYOUTPUTSRC).strip()
+        if not dest_file:
+            raise ConfigurationError(
+                "Configuration '%s' is missing or empty. "
+                "Please check your configuration file!" % KEYOUTPUTSRC)
+        dest_login, dest_password, dest_url, dest_config = load_source_config(
+            dest_file)
         self.repo.vreg.dest_authlogin = base64.encodestring(
-            cyphr.encrypt("%128s" % login))
+            cyphr.encrypt("%128s" % dest_login))
         self.repo.vreg.dest_authpassword = base64.encodestring(
-            cyphr.encrypt("%128s" % password))
+            cyphr.encrypt("%128s" % dest_password))
 
         # Create or update source
         with self.repo.internal_cnx() as cnx:
-            _create_or_update_ldap_data_source(cnx)
+            _create_or_update_ldap_data_source(
+                cnx, src_url, src_config, dest_url, dest_config, update=False)
 
         # Check if the source are active or not
         if self.repo.vreg.config.get(KEYDISABLEENTRY, False):
@@ -134,6 +153,24 @@ class ExternalAuthSourceHook(hook.Hook):
                         continue
                     self.repo._extid_cache["cn={0},{1}".format(
                         egroup.name, config["group-base-dn"])] = egroup.eid
+
+
+def load_source_config(sourcefile):
+    """ Load a source defined in the instance configuration file.
+    """
+    with open(sourcefile, "rt") as open_file:
+        config = json.load(open_file)
+    if "login" not in config:
+        login = raw_input("Enter the destination LDAP based system login: ")
+    else:
+        login = config.pop("login")
+    if "password" not in config:
+        password = getpass.getpass(
+            "Enter the destination LDAP based system password: ")
+    else:
+        password = config.pop("password")
+    url = config.pop("url")
+    return login, password, url, config   
 
 
 def set_secret(config, secretfile):

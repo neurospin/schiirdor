@@ -68,9 +68,9 @@ class SSORetriever(native.BaseAuthentifier):
             # Create a connection to the ldap resource
             cyphr = build_cypher(session.vreg.config._secret)
             ldap_login = cyphr.decrypt(
-                base64.decodestring(session.vreg.dest_authlogin)).strip()
+                base64.decodestring(session.vreg.src_authlogin)).strip()
             ldap_password = cyphr.decrypt(
-                base64.decodestring(session.vreg.dest_authpassword)).strip()
+                base64.decodestring(session.vreg.src_authpassword)).strip()
             connection = LDAPConnection(seid, self.src_name, stype, surl,
                                         sconfig, ldap_login, ldap_password,
                                         verbose=0)

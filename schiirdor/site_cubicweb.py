@@ -9,47 +9,80 @@
 options = (
     ('registration-cypher-seed',
      {'type' : 'string',
-      'default': u'',
-      'help': 'seed used to cypher registration data in confirmation email link',
+      'help': 'a secret file containing a  32 bytes seed used to cypher '
+              'confidential data.',
       'group': 'schiirdor',
       'level': 1,
       }),
     ('logo',
      {'type': 'string',
       'default': 'images/nsap.png',
-      'help': 'Navigation bar logo',
+      'help': 'file with the navigation bar logo.',
       'group': 'schiirdor',
       'level': 2,
       }),
     ('disable-ldapfeed',
      {'type' : 'yn',
       'default': True,
-      'help': 'If true disable the CubicWeb LDAPFEED connection.',
+      'help': 'if true disable the CubicWeb LDAPFEED connection.',
       'group': 'schiirdor',
       'level': 3,
       }),
     ('check-user-register-in-cw',
      {'type' : 'yn',
       'default': True,
-      'help': 'If true user must be registered in CubicWeb to be able to '
-              'connect the service, otherwise trust the source only.',
+      'help': 'if true user must be registered in CubicWeb in order to be '
+              'able to connect the service, otherwise trust the source only.',
       'group': 'schiirdor',
       'level': 4,
       }),
     ('active-group',
      {'type' : 'string',
       'default': u'',
-      'help': 'A group name used to put new user in quarantine. If specified, '
+      'help': 'a group name used to put new user in quarantine. If specified, '
               'users will be automatically added to this group when '
-              'moderators grant them access permissions.',
+              'moderators grant them access permissions. They will also be '
+              'removed from this group automatically if the user have no more '
+              'rights on the system.',
       'group': 'schiirdor',
       'level': 5,
       }),
     ('restricted-groups',
      {'type' : 'csv',
       'default': 'managers,users,guests,owners,moderators',
-      'help': 'A list of groups the moderators cannot administrate.',
+      'help': 'a list of groups the moderators cannot administrate '
+              '(will not see in the modeartion list).',
       'group': 'schiirdor',
       'level': 6,
+      }),
+    ('source-config',
+     {'type' : 'string',
+      'help': 'a JSON file containing the AD/LDAP source description. The '
+              'content of this fil is examplify in the '
+              'migration/update_sources module.',
+      'group': 'schiirdor',
+      'level': 7,
+      }),
+    ('destination-config',
+     {'type' : 'string',
+      'help': 'a JSON file containing the AD/LDAP source description. The '
+              'content of this fil is examplify in the '
+              'migration/update_sources module.',
+      'group': 'schiirdor',
+      'level': 8,
+      }),
+    ('moderation-log',
+     {'type' : 'string',
+      'help': 'the path to a file where modertion actions will be logged.',
+      'group': 'schiirdor',
+      'level': 9,
+      }),
+    ('administrator-emails',
+     {'type' : 'csv',
+      'default': '',
+      'help': 'a list of emails that will be notified when a modeartion '
+              'action is performed on the system.',
+      'group': 'schiirdor',
+      'level': 10,
       })
 )

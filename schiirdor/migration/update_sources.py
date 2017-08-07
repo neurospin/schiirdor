@@ -7,7 +7,7 @@
 ##########################################################################
 
 # Configure sources
-_DESTINATION_LDAP_CONFIGURATION_DETAILS = {
+_AD_CONFIGURATION_DETAILS = {
     "synchronize": "no",
     "synchronization-interval": "1min",
     "data-cnx-dn": u"cn={0},dc=intra,dc=cea,dc=fr",
@@ -25,7 +25,7 @@ _DESTINATION_LDAP_CONFIGURATION_DETAILS = {
     "group-classes": "posixGroup",
     "group-filter": "(cn={0})"
 }
-_SOURCE_LDAP_CONFIGURATION_DETAILS = {
+_LDAP_CONFIGURATION_DETAILS = {
     "synchronize": "no",
     "synchronization-interval": "1min",
     "data-cnx-dn": u"{0}@intra.cea.fr",
@@ -134,32 +134,32 @@ def _escape_rql(request):
 _DESTINATION_LDAP_ATTRIBUTES = {
     u"name": u"SCHIIRDOR_DESTINATION",
     u"type": u"ldapfeed",
-    u"config": _escape_rql(
-        _LDAP_CONFIGURATION % _DESTINATION_LDAP_CONFIGURATION_DETAILS),
-    u"url": u"ldap://127.0.0.1/",
+    #u"config": _escape_rql(
+    #    _LDAP_CONFIGURATION % _AD_CONFIGURATION_DETAILS),
+    #u"url": u"ldap://127.0.0.1/",
     u"parser": u"ldapfeed"
 }
-#_SOURCE_LDAP_ATTRIBUTES = {
-#    u"name": u"SCHIIRDOR_SOURCE",
-#    u"type": u"ldapfeed",
-#    u"config": _escape_rql(
-#        _LDAP_CONFIGURATION % _SOURCE_LDAP_CONFIGURATION_DETAILS),
-#    u"url": u"ldaps://intra.cea.fr/",
-#    u"parser": u"ldapfeed"
-#}
 _SOURCE_LDAP_ATTRIBUTES = {
     u"name": u"SCHIIRDOR_SOURCE",
     u"type": u"ldapfeed",
-    u"config": _escape_rql(
-        _LDAP_CONFIGURATION % _DESTINATION_LDAP_CONFIGURATION_DETAILS),
-    u"url": u"ldap://127.0.0.1/",
+    #u"config": _escape_rql(
+    #    _LDAP_CONFIGURATION % _LDAP_CONFIGURATION_DETAILS),
+    #u"url": u"ldaps://intra.cea.fr/",
     u"parser": u"ldapfeed"
 }
 
-def _create_or_update_ldap_data_source(session, update=False):
+
+def _create_or_update_ldap_data_source(session, src_url, src_config, dest_url,
+                                       dest_config, update=False):
     """ Create the LDAP data source if not already created. Update the LDAP
     data if requested.
     """
+    _SOURCE_LDAP_ATTRIBUTES[u"url"] = src_url
+    _SOURCE_LDAP_ATTRIBUTES[u"config"] = _escape_rql(
+        _LDAP_CONFIGURATION % src_config)
+    _DESTINATION_LDAP_ATTRIBUTES[u"url"] = dest_url
+    _DESTINATION_LDAP_ATTRIBUTES[u"config"] = _escape_rql(
+        _LDAP_CONFIGURATION % dest_config)
     for attributes in [_DESTINATION_LDAP_ATTRIBUTES, _SOURCE_LDAP_ATTRIBUTES]:
         name = attributes[u"name"]
         req = "Any X WHERE X is CWSource, X name '%(name)s'" % {"name": name}
