@@ -68,7 +68,7 @@ class SCHIIRDORIndexView(IndexView):
                 u'<script type="text/javascript" src="{0}"></script>'.format(
                     self._cw.data_url(path)))
         resources = {
-            "header-url": self._cw.data_url("creative/img/header.jpg"),
+            "header-url": self._cw.data_url("creative/img/neurospin.jpg"),
             "login-url": self._cw.build_url(
                 "login", __message=u"Please login with your account."),
             "contact-email": unicode(self._cw.vreg.config.get(
