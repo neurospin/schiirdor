@@ -50,8 +50,9 @@ class ServerStartupHook(hook.Hook):
         self.repo.system_source.add_authentifier(SSORetriever())
 
         # A concurrent log with no rotation keeping no copy
-        logfile = self.repo.vreg.config.get("moderation-log", None)
-        logdir = os.path.dirname(logfile)
+        logfile = self.repo.vreg.config.get("moderation-log")
+        if logfile is not None:
+            logdir = os.path.dirname(logfile)
         if logfile is not None and os.path.isdir(logdir):
             self.info(
                 "Moderation logging will be performed in '{0}'.".format(logfile))
@@ -64,7 +65,7 @@ class ServerStartupHook(hook.Hook):
             logger.info("[START] Service started {0}.".format(tic))
         else:
             self.info("No moderation logging will be performed.")
-            
+
 
 
 
@@ -116,7 +117,8 @@ class ExternalAuthSourceHook(hook.Hook):
         """
         # Small hack copied from the trustedauth cube to make sure the secret
         # key file is loaded on both sides of cw (repo and web)
-        secretfile = self.repo.vreg.config.get(KEYCONFENTRY, "").strip()
+        secretfile = self.repo.vreg.config.get(KEYCONFENTRY) or ""
+        secretfile = secretfile.strip()
         if not secretfile:
             raise ConfigurationError(
                 "Configuration '%s' is missing or empty. "
@@ -126,7 +128,8 @@ class ExternalAuthSourceHook(hook.Hook):
         # Make sure a login and password is provided to contact the external
         # sources on both sides of cw (repo and web)
         cyphr = build_cypher(self.repo.vreg.config._secret)
-        src_file = self.repo.vreg.config.get(KEYINPUTSRC).strip()
+        src_file = self.repo.vreg.config.get(KEYINPUTSRC) or ""
+        src_file = src_file.strip()
         if not src_file:
             raise ConfigurationError(
                 "Configuration '%s' is missing or empty. "
@@ -137,7 +140,8 @@ class ExternalAuthSourceHook(hook.Hook):
             cyphr.encrypt("%128s" % src_login))
         self.repo.vreg.src_authpassword = base64.encodestring(
             cyphr.encrypt("%128s" % src_password))
-        dest_file = self.repo.vreg.config.get(KEYOUTPUTSRC).strip()
+        dest_file = self.repo.vreg.config.get(KEYOUTPUTSRC) or ""
+        dest_file = dest_file.strip()
         if not dest_file:
             raise ConfigurationError(
                 "Configuration '%s' is missing or empty. "
@@ -193,8 +197,12 @@ def load_source_config(sourcefile):
             "Enter the destination LDAP based system password: ")
     else:
         password = config.pop("password")
-    url = config.pop("url")
-    return login, password, url, config   
+    url = config.get("url") or ""
+    url = url.strip()
+    if not url:
+        raise Exception("Please specify the LDAP server URL as 'url' "
+                        "parameter in LDAP configuration file.")
+    return login, password, url, config
 
 
 def set_secret(config, secretfile):
