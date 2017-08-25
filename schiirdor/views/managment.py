@@ -526,18 +526,19 @@ class SCHIIRDORImportView(StartupView):
                 if rset.rowcount == 0:
                     self.w(u"<li>[info] creating user '{0}'...</li>".format(
                         user_info["login"]))
-                    req = "INSERT CWUser X, EmailAddress Y: "
+                    prefix = "INSERT CWUser X"
+                    req = ""
                     have_email = False
                     for attribute, value in user_info.items():
                         if "mail" in attribute.lower():
                             if not have_email:
+                                prefix += ", EmailAddress Y"
                                 req += " X primary_email Y, Y address '%(value)s'," % {"value": value}
                                 have_email = True
                         else:
                             req += " X %(attribute)s '%(value)s'," % {
                                 "attribute": attribute, "value": value}
-                    req += "X in_group G WHERE G name 'users'"
-                    print req
+                    req = prefix + " :" + req + " X in_group G WHERE G name 'users'"
                     rset = cnx.execute(req)
 
             # create new groups
