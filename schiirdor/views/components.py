@@ -7,11 +7,9 @@
 ##########################################################################
 
 # CW import
-from logilab.common.registry import yes
 from cubicweb.predicates import match_user_groups
 from cubicweb.predicates import anonymous_user
 from cubicweb.predicates import authenticated_user
-from cubicweb.web import component
 from cubicweb.web.views.boxes import SearchBox
 from cubicweb.web.views.bookmark import BookmarksBox
 from cubicweb.web.views.basecomponents import HeaderComponent
@@ -19,9 +17,8 @@ from cubicweb.web.views.basecomponents import ApplLogo
 from cubicweb.web.views.basecomponents import CookieLoginComponent
 from logilab.common.decorators import monkeypatch
 from cubicweb.web.views.basecomponents import AuthenticatedUserStatus
-
+from cubicweb.web.views.basecomponents import AnonUserStatusLink
 # Cubes import
-from .predicates import trust_authenticated
 from cubes.bootstrap.views.basecomponents import BSAuthenticatedUserStatus
 
 
@@ -39,15 +36,12 @@ class AnonRegisterButton(HeaderComponent):
     This button will only be visible if logged as an anonymous user.
     """
     __regid__ = "anon-registration"
-    __select__ = HeaderComponent.__select__ & anonymous_user()
+    __select__ = anonymous_user()
     context = "header-right"
+    order = 0
 
-    def render(self, w):
-        self._cw.add_css("cubicweb.pictograms.css")
-        w(u"<a href='{0}' type='button' class='btn btn-default "
-          "btn-sm'>".format(self._cw.build_url("register")))
-        w(u"<span class='glyphicon icon-user-add'>{0}</span>"
-          "</a>".format(_("Register")))
+    def attributes(self):
+        return self._cw.build_url("register"), "Register", "fa-sign-up"
 
 
 class ManagerManageButton(HeaderComponent):
@@ -55,16 +49,12 @@ class ManagerManageButton(HeaderComponent):
     Only administrators and moderators will see this button.
     """
     __regid__ = "manager-manage"
-    __select__ = (HeaderComponent.__select__ &
-                  match_user_groups("managers", "moderators"))
+    __select__ = match_user_groups("managers", "moderators") & authenticated_user()
     context = "header-right"
+    order = 1
 
-    def render(self, w):
-        w(u"<a href='{0}' type='button' class='btn btn-default "
-          "btn-sm'>".format(
-                self._cw.build_url("view", vid="schiirdor.users-management")))
-        w(u"<span class='glyphicon glyphicon-sort'>{0}</span>"
-          "</a>".format(_(" Groups")))
+    def attributes(self):
+        return self._cw.build_url("view", vid="schiirdor.users-management"), "Users & groups", "fa-users"
 
 
 class ManagerSyncButton(HeaderComponent):
@@ -72,16 +62,13 @@ class ManagerSyncButton(HeaderComponent):
     Only administrators and moderators will see this button.
     """
     __regid__ = "manager-sync"
-    __select__ = (HeaderComponent.__select__ &
-                  match_user_groups("managers", "moderators"))
+    __select__ = match_user_groups("managers", "moderators") & authenticated_user()
     context = "header-right"
+    order = 3
 
-    def render(self, w):
-        w(u"<a href='{0}' type='button' class='btn btn-default "
-          "btn-sm'>".format(
-                self._cw.build_url("view", vid="schiirdor.sync-management")))
-        w(u"<span class='glyphicon glyphicon-transfer'>{0}</span>"
-          "</a>".format(_(" Sync")))
+    def attributes(self):
+        return self._cw.build_url("view", vid="schiirdor.sync-management"), "Sync", "fa-exchange"
+
 
 
 class AdminGroupButton(HeaderComponent):
@@ -89,16 +76,13 @@ class AdminGroupButton(HeaderComponent):
     Only the managers have accessed to this functionality.
     """
     __regid__ = "admin-status"
-    __select__ = (HeaderComponent.__select__ &
-                  match_user_groups("managers"))
+    __select__ = match_user_groups("managers") & authenticated_user()
     context = "header-right"
+    order = 2
 
-    def render(self, w):
-        w(u"<a href='{0}' type='button' class='btn btn-default "
-          "btn-sm'>".format(self._cw.build_url(
-                "view", vid="shiirdor.groups-management")))
-        w(u"<span class='glyphicon glyphicon-lock'>{0}</span>"
-          "</a>".format(_(" Create groups")))
+    def attributes(self):
+        return self._cw.build_url(
+                "view", vid="shiirdor.groups-management"), "Create groups", "fa-plus-square"
 
 
 class AdminImportButton(HeaderComponent):
@@ -106,32 +90,24 @@ class AdminImportButton(HeaderComponent):
     Only the managers have accessed to this functionality.
     """
     __regid__ = "admin-import"
-    __select__ = (HeaderComponent.__select__ & authenticated_user() &
-                  match_user_groups("managers"))
+    __select__ = match_user_groups("managers") & authenticated_user()
     context = "header-right"
+    order = 0
 
-    def render(self, w):
-        w(u"<a href='{0}' type='button' class='btn btn-default "
-          "btn-sm'>".format(self._cw.build_url(
-                "view", vid="shiirdor.users-groups-import")))
-        w(u"<span class='glyphicon glyphicon-import'>{0}</span>"
-          "</a>".format(_(" Import users&groups")))
+    def attributes(self):
+        return self._cw.build_url(
+                "view", vid="shiirdor.users-groups-import"), "Import users & groups", "fa-cloud-download"
 
 
 class LogOutButton(AuthenticatedUserStatus):
     """ Close the current session.
     """
-    divider_html = u'<li class="divider"></li>'
-    def render(self, w):
-        w(u"<a href='{0}' type='button' class='btn btn-default "
-          "btn-sm'>".format(self._cw.build_url("logout")))
-        w(u"<span class='glyphicon glyphicon-log-out'>{0}</span>"
-          "</a>".format(_(" Logout")))
+    __regid__ = "logout"
+    __select__ = authenticated_user()
+    order = 4
 
-    def render_actions(self, w, action):
-        w(u'<li>')
-        self.action_link(action).render(w=w)
-        w(u'</li>')
+    def attributes(self):
+        return (self._cw.build_url("logout"), "Sign-out", "fa-sign-out")
 
 
 @monkeypatch(CookieLoginComponent)
@@ -171,9 +147,12 @@ def render(self, w):
 
 def registration_callback(vreg):
 
-    for bclass in [AnonRegisterButton, ManagerManageButton, AdminGroupButton,
-                   LogOutButton, ManagerSyncButton, AdminImportButton]:
+    for bclass in [AdminGroupButton, ManagerManageButton, LogOutButton,
+                   ManagerSyncButton, AdminImportButton]:
         vreg.register(bclass)
 
     vreg.unregister(BookmarksBox)
     vreg.unregister(BSAuthenticatedUserStatus)
+    vreg.unregister(SearchBox)
+    vreg.unregister(AnonUserStatusLink)
+    vreg.unregister(AuthenticatedUserStatus)

@@ -29,12 +29,30 @@ from cubes.schiirdor.authplugin import SSORetriever
 # Third party import
 from cloghandler import ConcurrentRotatingFileHandler
 
+# Jinja2 import
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
+
 
 # Define key entry
 KEYCONFENTRY = "registration-cypher-seed"
 KEYDISABLEENTRY = "disable-ldapfeed"
 KEYINPUTSRC = "source-config"
 KEYOUTPUTSRC = "destination-config"
+
+
+class ConfigureTemplateEnvironment(hook.Hook):
+    """ On startup create jinja2 template environment.
+    """
+    __regid__ = "schiirdor.jinja2-template"
+    events = ("server_startup", )
+
+    def __call__(self):
+        template_env = Environment(
+            loader=PackageLoader("cubes.schiirdor", "templates"),
+            autoescape=select_autoescape(["html", "xml"]))
+        self.repo.vreg.template_env = template_env
 
 
 class ServerStartupHook(hook.Hook):
@@ -65,8 +83,6 @@ class ServerStartupHook(hook.Hook):
             logger.info("[START] Service started {0}.".format(tic))
         else:
             self.info("No moderation logging will be performed.")
-
-
 
 
 class InGroupHook(hook.Hook):

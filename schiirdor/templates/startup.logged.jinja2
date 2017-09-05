@@ -1,0 +1,34 @@
+<header style="background-image:url('{{header_url}}');">
+    <div class="header-content">
+        <div class="header-content-inner">
+            <h1 id="homeHeading">Welcome to the collaborative quality control system</h1>
+            <hr>
+            <p>You have been identify as a rater of the project.
+               All your ratings will be registered.</p>
+            <br/>
+            <a href="#completion" class="btn btn-primary btn-xl page-scroll">GETTING STARTED</a>
+        </div>
+    </div>
+</header>
+
+<section class="bg-primary" id="completion">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 text-center">
+                <h2 class="section-heading">What to do!</h2>
+                <hr class="light">
+                <p class="text-faded"> Below are the completion rates of the waves waiting for your expertise.</p>
+                {% for category, waves in waves_progress.items() %}
+                    {% for wave_name, progress in waves %}
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-info" role="progressbar" aria-valuenow="{{progress}}"
+                                 aria-valuemin="0" aria-valuemax="100" style="width:{{progress}}%">
+                                {{progress}}% {{wave_name}}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>

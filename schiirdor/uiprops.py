@@ -8,6 +8,20 @@
 
 
 STYLESHEETS += [
+    data("creative/vendor/normalize/normalize.min.css"),
+    data("creative/vendor/bootstrap/css/bootstrap.min.css"),
+    data("creative/vendor/font-awesome/css/font-awesome.min.css"),
+    data("creative/vendor/animate/animate.min.css"),
+    data("schiirdor.navbar.css"),
     data('cubes.schiirdor.css')
 ]
 
+
+STYLESHEETS_PRINT += [
+]
+
+
+JAVASCRIPTS += [
+    data("creative/vendor/jquery/jquery.min.js"),
+    data("creative/vendor/bootstrap/js/bootstrap.min.js")
+]

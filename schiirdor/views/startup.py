@@ -97,7 +97,7 @@ class SCHIIRDORLogoutController(LogoutController):
     def goto_url(self):
         """ do NOT redirect to an http:// url """
         msg = self._cw.__("You have been logged out.")
-        return self._cw.build_url("view", vid="index", __message=msg)  
+        return self._cw.build_url("view", vid="index", __message=msg)
 
 
 def registration_callback(vreg):
