@@ -29,10 +29,9 @@ class SCHIIRDORModeratorIndexView(IndexView):
         "users. All actions are registered.")
 
     def call(self, **kwargs):
-        """ Create the 'index' like page of our site that propose a
-        registration form.
+        """ Create the loggedin 'index' page of our site.
         """
-        self.w(u"<h1>Welecome to the moderation system.</h1>")
+        self.w(u"<h1>Welcome to the moderation system.</h1>")
         self.w(unicode(self.default_message))
 
 
@@ -46,8 +45,7 @@ class SCHIIRDORIndexView(IndexView):
     default_message = "Unable to locate startup page."
 
     def call(self, **kwargs):
-        """ Create the 'index' like page of our site that propose a
-        registration form.
+        """ Create the anonymous 'index' page of our site.
         """
         # Get additional resources links
         css = []
