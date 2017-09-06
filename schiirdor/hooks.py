@@ -15,10 +15,12 @@ import logging
 import time
 
 # CW import
+from logilab.common.decorators import monkeypatch
 from cubicweb.server import hook
 from cubicweb import ConfigurationError
 from cubicweb.predicates import match_user_groups
 from cubicweb.server.sources.ldapfeed import LDAPFeedSource
+from cubicweb.dataimport.importer import ExtEntitiesImporter
 
 # Cubes import
 from cubes.schiirdor.migration.update_sources import _create_or_update_ldap_data_source
@@ -29,12 +31,30 @@ from cubes.schiirdor.authplugin import SSORetriever
 # Third party import
 from cloghandler import ConcurrentRotatingFileHandler
 
+# Jinja2 import
+from jinja2 import Environment
+from jinja2 import PackageLoader
+from jinja2 import select_autoescape
+
 
 # Define key entry
 KEYCONFENTRY = "registration-cypher-seed"
 KEYDISABLEENTRY = "disable-ldapfeed"
 KEYINPUTSRC = "source-config"
 KEYOUTPUTSRC = "destination-config"
+
+
+class ConfigureTemplateEnvironment(hook.Hook):
+    """ On startup create jinja2 template environment.
+    """
+    __regid__ = "schiirdor.jinja2-template"
+    events = ("server_startup", )
+
+    def __call__(self):
+        template_env = Environment(
+            loader=PackageLoader("cubes.schiirdor", "templates"),
+            autoescape=select_autoescape(["html", "xml"]))
+        self.repo.vreg.template_env = template_env
 
 
 class ServerStartupHook(hook.Hook):
@@ -50,8 +70,9 @@ class ServerStartupHook(hook.Hook):
         self.repo.system_source.add_authentifier(SSORetriever())
 
         # A concurrent log with no rotation keeping no copy
-        logfile = self.repo.vreg.config.get("moderation-log", None)
-        logdir = os.path.dirname(logfile)
+        logfile = self.repo.vreg.config.get("moderation-log")
+        if logfile is not None:
+            logdir = os.path.dirname(logfile)
         if logfile is not None and os.path.isdir(logdir):
             self.info(
                 "Moderation logging will be performed in '{0}'.".format(logfile))
@@ -64,8 +85,6 @@ class ServerStartupHook(hook.Hook):
             logger.info("[START] Service started {0}.".format(tic))
         else:
             self.info("No moderation logging will be performed.")
-            
-
 
 
 class InGroupHook(hook.Hook):
@@ -116,7 +135,8 @@ class ExternalAuthSourceHook(hook.Hook):
         """
         # Small hack copied from the trustedauth cube to make sure the secret
         # key file is loaded on both sides of cw (repo and web)
-        secretfile = self.repo.vreg.config.get(KEYCONFENTRY, "").strip()
+        secretfile = self.repo.vreg.config.get(KEYCONFENTRY) or ""
+        secretfile = secretfile.strip()
         if not secretfile:
             raise ConfigurationError(
                 "Configuration '%s' is missing or empty. "
@@ -126,7 +146,8 @@ class ExternalAuthSourceHook(hook.Hook):
         # Make sure a login and password is provided to contact the external
         # sources on both sides of cw (repo and web)
         cyphr = build_cypher(self.repo.vreg.config._secret)
-        src_file = self.repo.vreg.config.get(KEYINPUTSRC).strip()
+        src_file = self.repo.vreg.config.get(KEYINPUTSRC) or ""
+        src_file = src_file.strip()
         if not src_file:
             raise ConfigurationError(
                 "Configuration '%s' is missing or empty. "
@@ -137,7 +158,8 @@ class ExternalAuthSourceHook(hook.Hook):
             cyphr.encrypt("%128s" % src_login))
         self.repo.vreg.src_authpassword = base64.encodestring(
             cyphr.encrypt("%128s" % src_password))
-        dest_file = self.repo.vreg.config.get(KEYOUTPUTSRC).strip()
+        dest_file = self.repo.vreg.config.get(KEYOUTPUTSRC) or ""
+        dest_file = dest_file.strip()
         if not dest_file:
             raise ConfigurationError(
                 "Configuration '%s' is missing or empty. "
@@ -152,31 +174,11 @@ class ExternalAuthSourceHook(hook.Hook):
         # Create or update source
         with self.repo.internal_cnx() as cnx:
             _create_or_update_ldap_data_source(
-                cnx, src_url, src_config, dest_url, dest_config, update=False)
+                cnx, src_url, src_config, dest_url, dest_config, update=True)
 
         # Check if the source are active or not
         if self.repo.vreg.config.get(KEYDISABLEENTRY, False):
             LDAPFeedSource.disabled = True
-        # Update repository cache for source synchronization
-        else:
-            with self.repo.internal_cnx() as cnx:
-                rset = cnx.execute(self.src_rql)
-            if rset.rowcount != 1:
-                raise Exception("No resource attached to this RQL: "
-                                "{0}.".format(self.src_rql))
-            seid, stype, surl, sconfig = rset[0]
-            if stype != "ldapfeed":
-                raise Exception("Source '{0}' must be of 'ldapfeed' "
-                                "type.".format(self.src_name))
-            config = LDAPConnection.configure(
-                seid, self.src_name, stype, surl, sconfig, login, password)
-            with self.repo.internal_cnx() as cnx:
-                rset = cnx.execute("Any X WHERE X is CWGroup")
-                for egroup in rset.entities():
-                    if egroup.name in ["guests", "managers", "users", "owners"]:
-                        continue
-                    self.repo._extid_cache["cn={0},{1}".format(
-                        egroup.name, config["group-base-dn"])] = egroup.eid
 
 
 def load_source_config(sourcefile):
@@ -193,8 +195,12 @@ def load_source_config(sourcefile):
             "Enter the destination LDAP based system password: ")
     else:
         password = config.pop("password")
-    url = config.pop("url")
-    return login, password, url, config   
+    url = config.get("url") or ""
+    url = url.strip()
+    if not url:
+        raise Exception("Please specify the LDAP server URL as 'url' "
+                        "parameter in LDAP configuration file.")
+    return login, password, url, config
 
 
 def set_secret(config, secretfile):
@@ -211,4 +217,35 @@ def set_secret(config, secretfile):
         raise ConfigurationError(
             "Secret key must me a string 0 < len(key) <= 32.")
     config._secret = secret.ljust(32, "#")
+
+
+@monkeypatch(ExtEntitiesImporter)
+def _import_entities(self, ext_entities, queue):
+    """ LDAP synch import groups as external entities and thus the
+    'ExtEntitiesImporter' importer is used.
+
+    To synch LDAP with existing CW groups, check the group existance in
+    CW.
+    """
+    extid2eid = self.extid2eid
+    deferred = {}  # non inlined relations that may be deferred
+    self.import_log.record_debug("importing entities")
+    for ext_entity in self.iter_ext_entities(ext_entities, deferred, queue):
+
+        # Case of groups for LDAP Sync: check group existance
+        if ext_entity.etype == "CWGroup":
+            group_name = ext_entity.values["name"]
+            rql = "Any G Where G is CWGroup, G name '{0}'".format(
+                group_name)
+            if self.store.rql(rql).rowcount > 0:
+                continue
+
+        try:
+            eid = extid2eid[ext_entity.extid]
+        except KeyError:
+            self.prepare_insert_entity(ext_entity)
+        else:
+            if ext_entity.values:
+                self.prepare_update_entity(ext_entity, eid)
+    return deferred
 

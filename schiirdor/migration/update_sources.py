@@ -165,7 +165,7 @@ def _create_or_update_ldap_data_source(session, src_url, src_config, dest_url,
         req = "Any X WHERE X is CWSource, X name '%(name)s'" % {"name": name}
         rset = session.execute(req)
         if rset.rowcount == 1 and update:
-            print("Updating source '%s'..." % name)
+            session.info("Updating source '%s'..." % name)
             req = "SET"
             for attribute, value in attributes.iteritems():
                 req += " X %(attribute)s '%(value)s'," % {"attribute": attribute,
@@ -173,14 +173,14 @@ def _create_or_update_ldap_data_source(session, src_url, src_config, dest_url,
             req = req[:-1]
             req += " WHERE X is CWSource, X name '%(name)s'" % {"name": name}
         elif rset.rowcount == 0:
-            print("Creating source '%s'..." % name)
+            session.info("Creating source '%s'..." % name)
             req = "INSERT CWSource X:"
             for attribute, value in attributes.iteritems():
                 req += " X %(attribute)s '%(value)s'," % {"attribute": attribute,
                                                           "value": value}
             req = req[:-1]
         else:
-            print("Existing source '%s' (%i)." % (name, rset[0][0]))
+            session.info("Existing source '%s' (%i)." % (name, rset[0][0]))
 
         rset = session.execute(req)
         session.commit()

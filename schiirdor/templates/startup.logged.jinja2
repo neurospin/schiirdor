@@ -1,0 +1,45 @@
+<header style="background-image:url('{{header_url}}');">
+    <div class="header-content">
+        <div class="header-content-inner">
+            <h1 id="homeHeading">Welcome to the collaborative quality control system</h1>
+            <hr>
+            {% if moderator %}
+                <p>You have been identify as a moderator of the project.
+                   All your actions will be recorded.</p>
+                <br/>
+            {% else %}
+                <p>You are not a moderator of the project.</p>
+                <br/>
+            {% endif %}
+            <a href="#completion" class="btn btn-primary btn-xl page-scroll">GETTING STARTED</a>
+        </div>
+    </div>
+</header>
+
+<section class="bg-primary" id="completion">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 text-center">
+                <h2 class="section-heading">What to do!</h2>
+                <hr class="light">
+                {% if moderator %}
+                    <p class="text-faded"> You can assign users to groups in order to update their
+                        data publication access rights.</p>
+                {% else %}
+                    <p> Please use the contact mail to request moderation rights. </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+    $(document).ready(function(){
+        var attrs = ["padding-left", "padding-right", "padding-bottom",
+                     "margin-top", "padding-top"];
+        for (var i=0; i<attrs.length; i++) {
+            $("#page").css(attrs[i], 0);
+        } 
+    });
+</script>
+

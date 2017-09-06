@@ -142,7 +142,7 @@ class LDAPConnection(object):
         """
         searchfilter = [self.config["group-filter"].format(group)]
         searchfilter.extend(self.group_base_filters)
-        searchstr = "(&%s)" % "".join(searchfilter) 
+        searchstr = "(&%s)" % "".join(searchfilter)
         if self.verbose > 0:
             pprint(searchstr)
         if filter_attributes:

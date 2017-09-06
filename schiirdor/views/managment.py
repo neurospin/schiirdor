@@ -139,7 +139,7 @@ class SCHIIRDORSyncManagementView(StartupView):
 
                 # Record all user associated groups
                 cw_user_group_map.setdefault(group, []).append(login)
-            
+
                 # Create/get the group
                 grp = connection.is_valid_group(group, filter_attributes=True)
                 if grp is None:
@@ -162,7 +162,7 @@ class SCHIIRDORSyncManagementView(StartupView):
                     connection.create_user(login, secret, firstname,
                                            surname)
 
-                # Update the group members if necessary               
+                # Update the group members if necessary
                 if login not in members:
                     self._cw.session.info(
                         "Add user '%s' in group '%s'." % (login, group))
@@ -180,7 +180,7 @@ class SCHIIRDORSyncManagementView(StartupView):
                     active_members.append(login)
                     cw_user_group_map.setdefault(active_grp_name, []).append(
                         login)
-                
+
             else:
                 self._cw.session.error("User '%s' is in quarantine." % login)
                 errors.append(login)
@@ -225,7 +225,7 @@ class SCHIIRDORSyncManagementView(StartupView):
         message = "[{0}] {1}".format(self._cw.session.login,
                                      json.dumps(admin_reprot))
         logger.info(message)
-        
+
         # Send notification email
         for login in syncs:
             if login not in emails:
@@ -429,12 +429,12 @@ def reledit_form(self):
 
     html = self._call_view(view, **args)
     if "managers" not in [grp.name for grp in self._cw.user.in_group]:
-        for name in (req.vreg.config["restricted-groups"] + 
+        for name in (req.vreg.config["restricted-groups"] +
                 [self._cw.vreg.config["active-group"]]):
             regex = '<option value="[0-9]*">{1}.*</option>'.format(
                 self._cw.form['eid'], name)
             html = re.sub(regex, "", html)
-    
+
     return html
 
 
@@ -526,11 +526,19 @@ class SCHIIRDORImportView(StartupView):
                 if rset.rowcount == 0:
                     self.w(u"<li>[info] creating user '{0}'...</li>".format(
                         user_info["login"]))
-                    req = "INSERT CWUser X: "
+                    prefix = "INSERT CWUser X"
+                    req = ""
+                    have_email = False
                     for attribute, value in user_info.items():
-                        req += " X %(attribute)s '%(value)s'," % {
-                            "attribute": attribute, "value": value}
-                    req += "X in_group G WHERE G name 'users'"
+                        if "mail" in attribute.lower():
+                            if not have_email:
+                                prefix += ", EmailAddress Y"
+                                req += " X primary_email Y, Y address '%(value)s'," % {"value": value}
+                                have_email = True
+                        else:
+                            req += " X %(attribute)s '%(value)s'," % {
+                                "attribute": attribute, "value": value}
+                    req = prefix + " :" + req + " X in_group G WHERE G name 'users'"
                     rset = cnx.execute(req)
 
             # create new groups
@@ -556,7 +564,7 @@ class SCHIIRDORImportView(StartupView):
                     allowed_groups.setdefault(login, []).append(grpname)
                     req = ("Any X WHERE X is CWUser, X login '{0}', "
                            "X in_group G, G name '{1}'".format(login, grpname))
-                    rset = cnx.execute(req) 
+                    rset = cnx.execute(req)
                     if rset.rowcount == 0:
                         self.w(u"<li>[info] adding relation '{0}' in_group "
                                 "'{1}'...</li>".format(login, grpname))
@@ -568,7 +576,7 @@ class SCHIIRDORImportView(StartupView):
 
         # Delete extra users and groups.
         with self._cw.session.repo.internal_cnx() as cnx:
-            
+
             # get all CW users
             users = set([
                 row[0]
@@ -680,7 +688,7 @@ class SCHIIRDORAdminUsersTable(EntityTableView):
 ###############################################################################
 
 def registration_callback(vreg):
-    
+
     for klass in [SCHIIRDORSyncManagementView, SCHIIRDORUserManagementView,
                   SCHIIRDORUsersTable, SCHIIRDORGroupsManagementView,
                   SCHIIRDORImportView, SCHIIRDORGroupsTable,
