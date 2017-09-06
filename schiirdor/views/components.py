@@ -18,6 +18,8 @@ from cubicweb.web.views.basecomponents import CookieLoginComponent
 from logilab.common.decorators import monkeypatch
 from cubicweb.web.views.basecomponents import AuthenticatedUserStatus
 from cubicweb.web.views.basecomponents import AnonUserStatusLink
+from cubicweb.web.views.facets import FilterBox
+from cubicweb.web.views.boxes import EditBox
 # Cubes import
 from cubes.bootstrap.views.basecomponents import BSAuthenticatedUserStatus
 
@@ -31,6 +33,18 @@ except ImportError:
 SearchBox.__select__ = match_user_groups("managers")
 
 
+class HomeButton(HeaderComponent):
+    """ Build a home button displayed in the header.
+    """
+    __regid__ = "home-snapview"
+    __select__ = authenticated_user()
+    order = 0
+    context = u"header-right"
+
+    def attributes(self):
+        return self._cw.build_url("view", vid="index"), "Home", "fa-home"
+
+
 class AnonRegisterButton(HeaderComponent):
     """ Build a registration button displayed in the header.
     This button will only be visible if logged as an anonymous user.
@@ -38,7 +52,7 @@ class AnonRegisterButton(HeaderComponent):
     __regid__ = "anon-registration"
     __select__ = anonymous_user()
     context = "header-right"
-    order = 0
+    order = 1
 
     def attributes(self):
         return self._cw.build_url("register"), "Register", "fa-sign-up"
@@ -51,10 +65,11 @@ class ManagerManageButton(HeaderComponent):
     __regid__ = "manager-manage"
     __select__ = match_user_groups("managers", "moderators") & authenticated_user()
     context = "header-right"
-    order = 1
+    order = 2
 
     def attributes(self):
-        return self._cw.build_url("view", vid="schiirdor.users-management"), "Users & groups", "fa-users"
+        return (self._cw.build_url("view", vid="schiirdor.users-management"),
+                "Users & groups", "fa-users")
 
 
 class ManagerSyncButton(HeaderComponent):
@@ -67,7 +82,8 @@ class ManagerSyncButton(HeaderComponent):
     order = 3
 
     def attributes(self):
-        return self._cw.build_url("view", vid="schiirdor.sync-management"), "Sync", "fa-exchange"
+        return (self._cw.build_url("view", vid="schiirdor.sync-management"),
+                "Sync", "fa-exchange")
 
 
 
@@ -78,11 +94,11 @@ class AdminGroupButton(HeaderComponent):
     __regid__ = "admin-status"
     __select__ = match_user_groups("managers") & authenticated_user()
     context = "header-right"
-    order = 2
+    order = 4
 
     def attributes(self):
-        return self._cw.build_url(
-                "view", vid="shiirdor.groups-management"), "Create groups", "fa-plus-square"
+        return (self._cw.build_url("view", vid="shiirdor.groups-management"),
+                "Create groups", "fa-plus-square")
 
 
 class AdminImportButton(HeaderComponent):
@@ -92,11 +108,11 @@ class AdminImportButton(HeaderComponent):
     __regid__ = "admin-import"
     __select__ = match_user_groups("managers") & authenticated_user()
     context = "header-right"
-    order = 0
+    order = 5
 
     def attributes(self):
-        return self._cw.build_url(
-                "view", vid="shiirdor.users-groups-import"), "Import users & groups", "fa-cloud-download"
+        return (self._cw.build_url("view", vid="shiirdor.users-groups-import"),
+                "Import users & groups", "fa-cloud-download")
 
 
 class LogOutButton(AuthenticatedUserStatus):
@@ -104,35 +120,10 @@ class LogOutButton(AuthenticatedUserStatus):
     """
     __regid__ = "logout"
     __select__ = authenticated_user()
-    order = 4
+    order = 6
 
     def attributes(self):
         return (self._cw.build_url("logout"), "Sign-out", "fa-sign-out")
-
-
-@monkeypatch(CookieLoginComponent)
-def call(self):
-    """ Change the login button in the header.
-    """
-    self._cw.add_css("cubicweb.pictograms.css")
-    self._html = u"""
-        <a type='button'
-           class='btn btn-default btn-sm'
-           title="%s"
-           data-toggle="modal"
-           href="#loginModal">%s</a>"""
-    title = u"<span class='glyphicon icon-login'>%s</span>" %  _("Login")
-    self.w(self._html % (_("login / password"), title))
-    self._cw.view("logform", rset=self.cw_rset, id=self.loginboxid,
-                  klass="%s hidden" % self.loginboxid, title=False,
-                  showmessage=False, w=self.w, showonload=False)
-
-
-@monkeypatch(CookieLoginComponent)
-def render(self, w):
-    # XXX bw compat, though should warn about subclasses redefining call
-    self.w = w
-    self.call()
 
 
 @monkeypatch(ApplLogo)
@@ -147,12 +138,11 @@ def render(self, w):
 
 def registration_callback(vreg):
 
-    for bclass in [AdminGroupButton, ManagerManageButton, LogOutButton,
-                   ManagerSyncButton, AdminImportButton]:
-        vreg.register(bclass)
+    for klass in [AdminGroupButton, ManagerManageButton, LogOutButton,
+                  ManagerSyncButton, AdminImportButton, HomeButton]:
+        vreg.register(klass)
 
-    vreg.unregister(BookmarksBox)
-    vreg.unregister(BSAuthenticatedUserStatus)
-    vreg.unregister(SearchBox)
-    vreg.unregister(AnonUserStatusLink)
-    vreg.unregister(AuthenticatedUserStatus)
+    for klass in [BookmarksBox, BSAuthenticatedUserStatus,
+                  AnonUserStatusLink, FilterBox, EditBox]:
+        vreg.unregister(klass)
+

@@ -18,36 +18,52 @@ from cubicweb.predicates import authenticated_user
 from cubicweb.predicates import match_user_groups
 
 
+class SCHIIRDORNotModeratorIndexView(IndexView):
+    """ Class that defines the index view.
+    """
+    __regid__ = "index"
+    __select__ = authenticated_user() & ~match_user_groups("managers", "moderators")
+    title = _("Index")
+
+    def call(self, **kwargs):
+        """ Create the loggedin 'index' page of our site.
+        """
+        # Format template
+        template = self._cw.vreg.template_env.get_template("startup.logged.jinja2")
+        html = template.render(
+            header_url=self._cw.data_url("creative/img/neurospin.jpg"),
+            moderator=False)
+        self.w(html)
+
+
 class SCHIIRDORModeratorIndexView(IndexView):
     """ Class that defines the index view.
     """
     __regid__ = "index"
-    __select__ = authenticated_user() and match_user_groups("managers", "moderators")
+    __select__ = authenticated_user() & match_user_groups("managers", "moderators")
     title = _("Index")
-    default_message = (
-        "Your are a modearator of the project. You can assign rights to "
-        "users. All actions are registered.")
 
     def call(self, **kwargs):
-        """ Create the 'index' like page of our site that propose a
-        registration form.
+        """ Create the loggedin 'index' page of our site.
         """
-        self.w(u"<h1>Welecome to the moderation system.</h1>")
-        self.w(unicode(self.default_message))
+        # Format template
+        template = self._cw.vreg.template_env.get_template("startup.logged.jinja2")
+        html = template.render(
+            header_url=self._cw.data_url("creative/img/neurospin.jpg"),
+            moderator=True)
+        self.w(html)
 
 
 class SCHIIRDORIndexView(IndexView):
     """ Class that defines the index view.
     """
     __regid__ = "index"
-    __select__ = ~authenticated_user() or ~match_user_groups("moderators")
+    __select__ = ~authenticated_user()
     title = _("Index")
     templatable = False
-    default_message = "Unable to locate startup page."
 
     def call(self, **kwargs):
-        """ Create the 'index' like page of our site that propose a
-        registration form.
+        """ Create the anonymous 'index' page of our site.
         """
         # Get additional resources links
         css = []
@@ -55,40 +71,26 @@ class SCHIIRDORIndexView(IndexView):
                      "creative/vendor/font-awesome/css/font-awesome.min.css",
                      "creative/vendor/magnific-popup/magnific-popup.css",
                      "creative/css/creative.css"):
-            css.append(
-                u'<link rel="stylesheet" type="text/css" href="{0}"/>'.format(
-                    self._cw.data_url(path)))
+            css.append(self._cw.data_url(path))
         js = []
         for path in ("creative/vendor/jquery/jquery.min.js",
                      "creative/vendor/bootstrap/js/bootstrap.min.js",
                      "creative/vendor/scrollreveal/scrollreveal.min.js",
                      "creative/vendor/magnific-popup/jquery.magnific-popup.min.js",
                      "creative/js/creative.js"):
-            js.append(
-                u'<script type="text/javascript" src="{0}"></script>'.format(
-                    self._cw.data_url(path)))
-        resources = {
-            "header-url": self._cw.data_url("creative/img/neurospin.jpg"),
-            "login-url": self._cw.build_url(
+            js.append(self._cw.data_url(path))
+
+        # Format template
+        template = self._cw.vreg.template_env.get_template("startup.jinja2")
+        html = template.render(
+            header_url=self._cw.data_url("creative/img/neurospin.jpg"),
+            login_url=self._cw.build_url(
                 "login", __message=u"Please login with your account."),
-            "contact-email": unicode(self._cw.vreg.config.get(
-                "administrator-emails", "noreply@cea.fr")),
-            "css": "\n".join(css),
-            "js": "\n".join(js)
-        }
-
-        # Get local html startup
-        startup_html = os.path.join(os.path.dirname(__file__), "startup.html")
-        if os.path.isfile(startup_html):
-
-            with open(startup_html, "rt") as open_file:
-                html = open_file.readlines()
-            html = "\n".join(html)
-            for key, value in resources.items():
-                html = html.replace("%({0})s".format(key), value)
-            self.w(unicode(html))
-        else:
-            self.w(unicode(self.default_message))
+            contact_email=self._cw.vreg.config.get(
+                "administrator-emails", "noreply@cea.fr"),
+            css_url=css,
+            js_url=js)
+        self.w(html)
 
 
 class SCHIIRDORLogoutController(LogoutController):
@@ -104,3 +106,4 @@ def registration_callback(vreg):
     vreg.register_and_replace(SCHIIRDORIndexView, IndexView)
     vreg.register_and_replace(SCHIIRDORLogoutController, LogoutController)
     vreg.register(SCHIIRDORModeratorIndexView)
+    vreg.register(SCHIIRDORNotModeratorIndexView)

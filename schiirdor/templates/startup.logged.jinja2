@@ -3,9 +3,14 @@
         <div class="header-content-inner">
             <h1 id="homeHeading">Welcome to the collaborative quality control system</h1>
             <hr>
-            <p>You have been identify as a rater of the project.
-               All your ratings will be registered.</p>
-            <br/>
+            {% if moderator %}
+                <p>You have been identify as a moderator of the project.
+                   All your actions will be recorded.</p>
+                <br/>
+            {% else %}
+                <p>You are not a moderator of the project.</p>
+                <br/>
+            {% endif %}
             <a href="#completion" class="btn btn-primary btn-xl page-scroll">GETTING STARTED</a>
         </div>
     </div>
@@ -17,18 +22,24 @@
             <div class="col-lg-8 col-lg-offset-2 text-center">
                 <h2 class="section-heading">What to do!</h2>
                 <hr class="light">
-                <p class="text-faded"> Below are the completion rates of the waves waiting for your expertise.</p>
-                {% for category, waves in waves_progress.items() %}
-                    {% for wave_name, progress in waves %}
-                        <div class="progress">
-                            <div class="progress-bar progress-bar-info" role="progressbar" aria-valuenow="{{progress}}"
-                                 aria-valuemin="0" aria-valuemax="100" style="width:{{progress}}%">
-                                {{progress}}% {{wave_name}}
-                            </div>
-                        </div>
-                    {% endfor %}
-                {% endfor %}
+                {% if moderator %}
+                    <p class="text-faded"> You can assign users to groups in order to update their
+                        data publication access rights.</p>
+                {% else %}
+                    <p> Please use the contact mail to request moderation rights. </p>
+                {% endif %}
             </div>
         </div>
     </div>
 </section>
+
+<script>
+    $(document).ready(function(){
+        var attrs = ["padding-left", "padding-right", "padding-bottom",
+                     "margin-top", "padding-top"];
+        for (var i=0; i<attrs.length; i++) {
+            $("#page").css(attrs[i], 0);
+        } 
+    });
+</script>
+

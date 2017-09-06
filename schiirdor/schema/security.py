@@ -38,6 +38,16 @@ from cubicweb.schema import RO_ATTR_PERMS
 # ['CWSource', 'CWGroup', 'CWUser', 'EmailAddress']
 ###############################################################################
 
+# TODO: try to get the configuration directly from cubicweb.cwconfig
+# For the moment use inspect to get the config from a parent frame.
+import inspect
+for cnt, frame in enumerate(inspect.stack()):
+    _, _, _, values = inspect.getargvalues(frame[0])
+    if "config" in values:
+        config = values["config"]
+        break
+
+
 IN_GROUP_PERMISSIONS = {
     "read": ("managers", "moderators"),
     "add": ("managers", "moderators"),
@@ -50,6 +60,7 @@ MODERATORS_PERMISSIONS = {
     "update": ("managers",),
     "delete": ("managers",),
 }
+
 
 BASE_GROUPS.add("moderators")
 in_group.__permissions__ = IN_GROUP_PERMISSIONS

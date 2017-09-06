@@ -52,10 +52,10 @@
     <header style="background-image:url('{{header_url}}');">
         <div class="header-content">
             <div class="header-content-inner">
-                <h1 id="homeHeading">Welcome to the collaborative quality control system</h1>
+                <h1 id="homeHeading">Welcome to the user rights management system</h1>
                 <hr>
                 <p>This service has been built to help consortia during the
-                   quality control of acquired and processed data.</p>
+                   access rights moderation: who can access which datasets.</p>
                 <a href="#start" class="btn btn-primary btn-xl page-scroll">GETTING STARTED</a>
             </div>
         </div>
@@ -67,8 +67,8 @@
                 <div class="col-lg-8 col-lg-offset-2 text-center">
                     <h2 class="section-heading">We've got what you need!</h2>
                     <hr class="light">
-                    <p class="text-faded"> Only specific people have the rating
-                      privilege. To see the rating options you need to
+                    <p class="text-faded"> Only specific people have the moderation
+                      privilege. To see the moderation options you need to
                       be logged. When logged in if no option is displayed and if
                       you think it should, please use the mail of the contact section.</p>
                     <a href="{{login_url}}" class="page-scroll btn btn-default btn-xl sr-button">LOG IN</a>
@@ -82,7 +82,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-lg-12 text-center">
-                    <h2 class="section-heading">The rating options</h2>
+                    <h2 class="section-heading">The moderation options</h2>
                     <hr class="primary">
                 </div>
             </div>
@@ -97,30 +97,21 @@
                           the left navigation menu.</p>
                     </div>
                 </div>
-                <div class="col-lg-4 col-md-6 text-center">
+                 <div class="col-lg-4 col-md-6 text-center">
                     <div class="service-box">
-                        <i class="fa fa-4x fa-list text-primary sr-icons"></i>
-                        <h3>Index</h3>
-                        <p class="text-muted">Click on this button to see 
-                          all the waves wating your expertise. Waves are
-                          sorted by categories.</p>
+                        <i class="fa fa-4x fa-exchange text-primary sr-icons"></i>
+                        <h3>Synchronize</h3>
+                        <p class="text-muted">Click on this button to synchronize 
+                          the modification you've made with the central repository.</p>
                     </div>
                 </div>
                 <div class="col-lg-4 col-md-6 text-center">
                     <div class="service-box">
-                        <i class="fa fa-4x fa-home text-primary sr-icons"></i>
-                        <h3>Home</h3>
-                        <p class="text-muted">Click on this button to return 
-                          to the startupe page with the ratings completion
-                          information.</p>
-                    </div>
-                </div>
-                <div class="col-lg-4 col-md-6 text-center">
-                    <div class="service-box">
-                        <i class="fa fa-4x fa-line-chart text-primary sr-icons"></i>
-                        <h3>Progress</h3>
-                        <p class="text-muted">Click on this button to see 
-                          a summary table with all your ratings.</p>
+                        <i class="fa fa-4x fa-users text-primary sr-icons"></i>
+                        <h3>Users & Groups</h3>
+                        <p class="text-muted">Click on this button to moderate 
+                          all the users by simply selecting graphycally the groups the
+                          users have access to.</p>
                     </div>
                 </div>
                 <div class="col-lg-4 col-md-6 text-center">
@@ -134,7 +125,7 @@
                 <div class="col-lg-4 col-md-6 text-center">
                     <div class="service-box">
                         <i class="fa fa-4x fa-sign-out text-primary sr-icons"></i>
-                        <h3>Logout</h3>
+                        <h3>Sign-out</h3>
                         <p class="text-muted">Click on this button to logout.</p>
                     </div>
                 </div>
@@ -146,7 +137,7 @@
         <div class="container text-center">
             <div class="call-to-action">
                 <h2>Free Software</h2>
-                <a href="https://github.com/neurospin/zeijemol" class="btn btn-default btn-xl sr-button">Download Now!</a>
+                <a href="https://github.com/neurospin/schiirdor" class="btn btn-default btn-xl sr-button">Download Now!</a>
             </div>
         </div>
     </aside>
@@ -166,15 +157,11 @@
                 </div>
                 <div class="col-lg-4 text-center">
                     <i class="fa fa-envelope-o fa-3x sr-contact"></i>
-                    <p><a href="mailto:{{contact_email}}">Contact us</a></p>
+                    <p><a href="mailto:{{contact_email}}">schiirdor@cea.fr</a></p>
                 </div>
             </div>
         </div>
     </section>
-
-    {% for url in js_url %}
-        <script type="text/javascript" src="{{url}}"></script>
-    {% endfor %}
 
 </body>
 

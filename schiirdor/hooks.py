@@ -15,10 +15,12 @@ import logging
 import time
 
 # CW import
+from logilab.common.decorators import monkeypatch
 from cubicweb.server import hook
 from cubicweb import ConfigurationError
 from cubicweb.predicates import match_user_groups
 from cubicweb.server.sources.ldapfeed import LDAPFeedSource
+from cubicweb.dataimport.importer import ExtEntitiesImporter
 
 # Cubes import
 from cubes.schiirdor.migration.update_sources import _create_or_update_ldap_data_source
@@ -172,33 +174,11 @@ class ExternalAuthSourceHook(hook.Hook):
         # Create or update source
         with self.repo.internal_cnx() as cnx:
             _create_or_update_ldap_data_source(
-                cnx, src_url, src_config, dest_url, dest_config, update=False)
+                cnx, src_url, src_config, dest_url, dest_config, update=True)
 
         # Check if the source are active or not
         if self.repo.vreg.config.get(KEYDISABLEENTRY, False):
             LDAPFeedSource.disabled = True
-        # Update repository cache for source synchronization
-        else:
-            raise NotImplementedError("The trick to deal with the cubicweb "
-                                      "ldap sync is not implemented.")
-            # with self.repo.internal_cnx() as cnx:
-            #     rset = cnx.execute(self.src_rql)
-            # if rset.rowcount != 1:
-            #     raise Exception("No resource attached to this RQL: "
-            #                     "{0}.".format(self.src_rql))
-            # seid, stype, surl, sconfig = rset[0]
-            # if stype != "ldapfeed":
-            #     raise Exception("Source '{0}' must be of 'ldapfeed' "
-            #                     "type.".format(self.src_name))
-            # config = LDAPConnection.configure(
-            #     seid, self.src_name, stype, surl, sconfig, login, password)
-            # with self.repo.internal_cnx() as cnx:
-            #     rset = cnx.execute("Any X WHERE X is CWGroup")
-            #     for egroup in rset.entities():
-            #         if egroup.name in ["guests", "managers", "users", "owners"]:
-            #             continue
-            #         self.repo._extid_cache["cn={0},{1}".format(
-            #             egroup.name, config["group-base-dn"])] = egroup.eid
 
 
 def load_source_config(sourcefile):
@@ -237,4 +217,35 @@ def set_secret(config, secretfile):
         raise ConfigurationError(
             "Secret key must me a string 0 < len(key) <= 32.")
     config._secret = secret.ljust(32, "#")
+
+
+@monkeypatch(ExtEntitiesImporter)
+def _import_entities(self, ext_entities, queue):
+    """ LDAP synch import groups as external entities and thus the
+    'ExtEntitiesImporter' importer is used.
+
+    To synch LDAP with existing CW groups, check the group existance in
+    CW.
+    """
+    extid2eid = self.extid2eid
+    deferred = {}  # non inlined relations that may be deferred
+    self.import_log.record_debug("importing entities")
+    for ext_entity in self.iter_ext_entities(ext_entities, deferred, queue):
+
+        # Case of groups for LDAP Sync: check group existance
+        if ext_entity.etype == "CWGroup":
+            group_name = ext_entity.values["name"]
+            rql = "Any G Where G is CWGroup, G name '{0}'".format(
+                group_name)
+            if self.store.rql(rql).rowcount > 0:
+                continue
+
+        try:
+            eid = extid2eid[ext_entity.extid]
+        except KeyError:
+            self.prepare_insert_entity(ext_entity)
+        else:
+            if ext_entity.values:
+                self.prepare_update_entity(ext_entity, eid)
+    return deferred
 

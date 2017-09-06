@@ -93,7 +93,7 @@
       background-color: #1a1a1a;
       color: #ffffff;
     }
-    .sidebar-nav li:nth-child(2):before {
+    /*.sidebar-nav li:nth-child(2):before {
       background-color: #337ab7;
     }
     .sidebar-nav li:nth-child(3):before {
@@ -115,6 +115,9 @@
       background-color: #337ab7;
     }
     .sidebar-nav li:nth-child(9):before {
+      background-color: #337ab7;
+    }*/
+    .sidebar-nav li:before {
       background-color: #337ab7;
     }
     .sidebar-nav li:hover:before {
