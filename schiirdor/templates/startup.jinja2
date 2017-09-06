@@ -163,6 +163,10 @@
         </div>
     </section>
 
+    {% for url in js_url %}
+        <script type="text/javascript" src="{{url}}"></script>
+    {% endfor %}
+
 </body>
 
 </html>
