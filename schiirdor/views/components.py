@@ -30,7 +30,8 @@ except ImportError:
     _ = unicode
 
 
-SearchBox.__select__ = match_user_groups("managers")
+# See actions.py: template_body_header
+#SearchBox.__select__ = match_user_groups("managers")
 
 
 class HomeButton(HeaderComponent):
