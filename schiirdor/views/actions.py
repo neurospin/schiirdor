@@ -60,8 +60,8 @@ def template_body_header(self, view):
     w(u'<td id="contentColumn">\n')
     components = self._cw.vreg['components']
     rqlcomp = components.select_or_none('rqlinput', self._cw, rset=self.cw_rset)
-    rqlcomp.formdef = rqlcomp.formdef.replace("%(css_class)s", "schiirdor-search")
     if rqlcomp and self._cw.user.matching_groups("managers"):
+        rqlcomp.formdef = rqlcomp.formdef.replace("%(css_class)s", "schiirdor-search")
         self._cw.add_onload('$(".hamburger").css("top", "40px");')
         rqlcomp.render(w=self.w, view=view)
     msgcomp = components.select_or_none('applmessages', self._cw, rset=self.cw_rset)
