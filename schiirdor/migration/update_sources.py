@@ -16,7 +16,7 @@ _AD_CONFIGURATION_DETAILS = {
     "user-attrs-map": (u"userPassword:upassword,mail:mail,uid:login,"
                        "givenName:firstname,sn:surname"),
     "group-base-dn": u"ou=Groups,dc=intra,dc=cea,dc=fr",
-    "group-attrs-map": u"memberUid:members,cn:name,gidNumber:gid",
+    "group-attrs-map": u"memberUid:member,cn:name,gidNumber:gid",
     "user-scope": "SUBTREE",
     "user-classes": "inetOrgPerson",
     "user-login-attr": "uid",

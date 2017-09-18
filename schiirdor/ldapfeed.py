@@ -90,6 +90,9 @@ class LDAPConnection(object):
                                           globals()[self.config["user-scope"]],
                                           searchstr,
                                           None)
+        if len(result) == 0:
+            raise Exception(
+                "user '{0}' is not known in LDAP.".format(login))
         if self.verbose > 0:
             pprint(result)
         user_dn = result[0][0]
@@ -226,7 +229,7 @@ class LDAPConnection(object):
             No unicity check is performed at this stage.
         """
         groupattr = collections.OrderedDict(self.config["group-attrs-map"])
-        group_key = groupattr.keys()[groupattr.values().index("members")]
+        group_key = groupattr.keys()[groupattr.values().index("member")]
         groupdn = "cn={0},{1}".format(group, self.config["group-base-dn"])
         attrs = [
             (ldap.MOD_ADD, group_key, str(login))
@@ -244,7 +247,7 @@ class LDAPConnection(object):
             No existence check is performed at this stage.
         """
         groupattr = collections.OrderedDict(self.config["group-attrs-map"])
-        group_key = groupattr.keys()[groupattr.values().index("members")]
+        group_key = groupattr.keys()[groupattr.values().index("member")]
         groupdn = "cn={0},{1}".format(group, self.config["group-base-dn"])
         attrs = [
             (ldap.MOD_DELETE, str(group_key), str(login))
@@ -280,6 +283,10 @@ class LDAPConnection(object):
             groups_data.append(data)
 
         attrmap = collections.OrderedDict(self.config["user-attrs-map"])
+
+        if "userPassword" not in attrmap:
+            attrmap["userPassword"] = "upassword"
+
         ldap_attrlist = [str(elem) for elem in attrmap.keys()]
         cw_attrlist = attrmap.values()
         searchfilter = [
@@ -304,7 +311,6 @@ class LDAPConnection(object):
                     values = values[0]
                 data[cw_attrlist[index]] = values
             users_data.append(data)
-
         return groups_data, users_data
 
 
@@ -387,7 +393,7 @@ if __name__ == "__main__":
     group-filter=(cn={0})
 
     # map from ldap group attributes to cubicweb attributes
-    group-attrs-map=memberUid:members,cn:name,gidNumber:gid
+    group-attrs-map=memberUid:member,cn:name,gidNumber:gid
     """
     c = LDAPConnection(
         seid=0, sname="SOURCE", stype="ldapfeed",
