@@ -24,12 +24,6 @@ Documentation of the 'PIWS' cube
                     </blockquote>
                 </div>
 
-                <div class="span4 box">
-                    <h2><a href="authentification.html">Authentification</a></h2>
-                    <blockquote>A single sign on (SSO) authentification.
-                    </blockquote>
-                </div>
-
             </div>
 
             <div class="row-fluid">

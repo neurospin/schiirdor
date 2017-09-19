@@ -19,7 +19,7 @@ from cubicweb.schema import PUB_SYSTEM_REL_PERMS
 from cubicweb.schema import PUB_SYSTEM_ATTR_PERMS
 from cubicweb.schema import RO_REL_PERMS
 from cubicweb.schema import RO_ATTR_PERMS
-
+from yams.buildobjs import String
 
 ###############################################################################
 # Set permissions
@@ -47,6 +47,7 @@ for cnt, frame in enumerate(inspect.stack()):
         config = values["config"]
         break
 
+CWGroup.add_relation(String(unique=True), name="gid")
 
 IN_GROUP_PERMISSIONS = {
     "read": ("managers", "moderators"),

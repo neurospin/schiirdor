@@ -25,8 +25,6 @@ from cubicweb.dataimport.importer import ExtEntitiesImporter
 # Cubes import
 from cubes.schiirdor.migration.update_sources import _create_or_update_ldap_data_source
 from cubes.trustedauth.cryptutils import build_cypher
-from cubes.schiirdor.ldapfeed import LDAPConnection
-from cubes.schiirdor.authplugin import SSORetriever
 
 # Third party import
 from cloghandler import ConcurrentRotatingFileHandler
@@ -58,17 +56,12 @@ class ConfigureTemplateEnvironment(hook.Hook):
 
 
 class ServerStartupHook(hook.Hook):
-    """ Register SSO authentifier at startup.
+    """ Register log file at startup.
     """
     __regid__ = "trustedauth.ssouserinit"
     events = ("server_startup",)
 
     def __call__(self):
-        # XXX use named args and inner functions to avoid referencing globals
-        # which may cause reloading pb
-        self.debug("Registering SSO authentifier.")
-        self.repo.system_source.add_authentifier(SSORetriever())
-
         # A concurrent log with no rotation keeping no copy
         logfile = self.repo.vreg.config.get("moderation-log")
         if logfile is not None:

@@ -32,7 +32,6 @@ from logilab.common.decorators import monkeypatch
 from cubicweb import _
 
 # Cubes import
-from .predicates import trust_authenticated
 from cubes.schiirdor.ldapfeed import LDAPConnection
 from cubes.trustedauth.cryptutils import build_cypher
 
@@ -109,12 +108,12 @@ class SCHIIRDORSyncManagementView(StartupView):
         active_grp = connection.is_valid_group(
             active_grp_name, filter_attributes=True)
         if active_grp is not None:
-            active_members = active_grp.get("members", [])
+            active_members = active_grp.get("member", [])
             if not isinstance(active_members, list):
                 active_members = [active_members]
         else:
             active_members = None
-        self._cw.session.info("Active members in '{0}': {1}.".format(
+        self._cw.session.info("Active member in '{0}': {1}.".format(
             active_grp_name, active_members))
 
         # Synchronize managed users with destination source.
@@ -149,7 +148,7 @@ class SCHIIRDORSyncManagementView(StartupView):
                                                     filter_attributes=True)
 
                 # Get the group members
-                members = grp.get("members", [])
+                members = grp.get("member", [])
                 if not isinstance(members, list):
                     members = [members]
 
@@ -191,11 +190,16 @@ class SCHIIRDORSyncManagementView(StartupView):
         for item in users_info:
             if "mail" in item:
                 emails[item["login"]] = item["mail"]
+
+        no_remove_groups = [g for g in restricted_groups
+                            if g != active_grp_name]
         removed = {}
         deactivated = []
         for group_struct in groups:
             grpname = group_struct["name"]
-            grpmembers = group_struct.get("members", [])
+            if grpname in no_remove_groups:
+                continue
+            grpmembers = group_struct.get("member", [])
             if not isinstance(grpmembers, list):
                 grpmembers = [grpmembers]
             grpmembers = set(grpmembers)
@@ -211,7 +215,6 @@ class SCHIIRDORSyncManagementView(StartupView):
 
         # Close connection
         connection.close()
-
 
         # Save actions to log file
         logger = logging.getLogger("schiirdor.moderation")
@@ -483,8 +486,8 @@ class SCHIIRDORImportView(StartupView):
     title = _("Import Users&Groups")
     __select__ = StartupView.__select__ & match_user_groups("managers")
     cache_max_age = 0 # disable caching
-    src_name = "SCHIIRDOR_DESTINATION"
-    src_rql = ("Any X, T, U, C Where X is CWSource, X name 'SCHIIRDOR_DESTINATION', "
+    src_name = "SCHIIRDOR_SOURCE"
+    src_rql = ("Any X, T, U, C Where X is CWSource, X name 'SCHIIRDOR_SOURCE', "
                "X type T, X url U, X config C")
 
     def call(self, **kwargs):
@@ -528,13 +531,10 @@ class SCHIIRDORImportView(StartupView):
                         user_info["login"]))
                     prefix = "INSERT CWUser X"
                     req = ""
-                    have_email = False
                     for attribute, value in user_info.items():
-                        if "mail" in attribute.lower():
-                            if not have_email:
-                                prefix += ", EmailAddress Y"
-                                req += " X primary_email Y, Y address '%(value)s'," % {"value": value}
-                                have_email = True
+                        if attribute == "email":
+                            prefix += ", EmailAddress Y"
+                            req += " X primary_email Y, Y address '%(value)s'," % {"value": value}
                         else:
                             req += " X %(attribute)s '%(value)s'," % {
                                 "attribute": attribute, "value": value}
@@ -553,7 +553,7 @@ class SCHIIRDORImportView(StartupView):
                     rset = cnx.execute(req)
 
                 # link group associated users
-                members = group_info.get("members", [])
+                members = group_info.get("member", [])
                 if not isinstance(members, list):
                     members = [members]
                 for login in members:
