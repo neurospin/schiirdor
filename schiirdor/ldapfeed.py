@@ -284,6 +284,9 @@ class LDAPConnection(object):
 
         attrmap = collections.OrderedDict(self.config["user-attrs-map"])
 
+        # If the LDAP to CW mapping for user password is not specified
+        # in the source config file, add it dynamically because 'upassword'
+        # attribute is required on CWUser creation.
         if "userPassword" not in attrmap:
             attrmap["userPassword"] = "upassword"
 
